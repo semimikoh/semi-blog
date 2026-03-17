@@ -1,0 +1,100 @@
+@import 'tailwindcss';
+
+:root {
+  --background: #ffffff;
+  --foreground: hsl(222.2 84% 4.9%);
+  --muted: hsl(220 9% 46%);
+  --card: hsl(302 0% 93%);
+  --card-foreground: hsl(227 80% 57%);
+  --primary: hsl(223 79% 57%);
+  --border: hsl(220 13% 85%);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-border: var(--border);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: hsl(13 27% 34%);
+    --foreground: hsl(210 40% 98%);
+    --muted: hsl(210 20% 70%);
+    --card: hsl(0 0% 20%);
+    --card-foreground: hsl(180 60% 60%);
+    --primary: hsl(30 39% 91%);
+    --border: hsl(0 0% 30%);
+  }
+}
+
+* {
+  border-color: var(--primary);
+  border-style: dashed;
+  border-image: repeating-linear-gradient(
+      90deg,
+      #000 0,
+      #000 12px,
+      transparent 12px,
+      transparent 20px
+    )
+    1;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  word-break: keep-all;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.prose {
+  max-width: none;
+}
+
+.prose span code {
+  background-color: var(--foreground) !important;
+  color: var(--background) !important;
+}
+
+.prose ul {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.prose li::marker {
+  color: var(--primary);
+}
+
+.prose img {
+  max-height: 500px;
+  margin: 12px auto 30px auto;
+}
+
+.prose hr {
+  border-color: var(--primary);
+}
+
+.prose blockquote {
+  border-color: var(--primary);
+}
+
+.prose a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-weight: 400;
+}
+
+.prose h2 {
+  margin-top: 7rem;
+  font-weight: 800;
+}
