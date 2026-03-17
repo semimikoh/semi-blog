@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={pretendard.className}>
-      <body className="mx-auto min-h-screen max-w-[820px] px-6 antialiased">
+      <body className="mx-auto min-h-screen max-w-[820px] px-4 antialiased sm:px-6">
         <Header />
         <main className="py-4">{children}</main>
         <Footer />

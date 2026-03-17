@@ -15,10 +15,13 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 mt-6 flex h-14 items-center justify-between border-b bg-background px-5">
-      <Link href="/" className="text-xl font-extrabold tracking-tight">
+      <Link
+        href="/"
+        className="hidden text-xl font-extrabold tracking-tight sm:block"
+      >
         SEMIKOH
       </Link>
-      <nav className="flex items-center space-x-6 text-lg font-medium">
+      <nav className="flex items-center space-x-3 text-sm font-medium sm:space-x-6 sm:text-lg">
         {navItems.map((item) => (
           <Link
             key={item.href}

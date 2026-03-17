@@ -2,6 +2,17 @@
   max-width: none;
   line-height: 1.75;
   font-size: 0.95rem;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.prose pre {
+  overflow-x: auto;
+}
+
+.prose table {
+  display: block;
+  overflow-x: auto;
 }
 
 .prose p {

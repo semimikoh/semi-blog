@@ -18,9 +18,11 @@ export default function PostCard({
 }: PostCardProps) {
   return (
     <Link href={`/posts/${slug}`} className="group block border-b py-[15px]">
-      <div className="flex h-[100px] items-center justify-between gap-8">
+      <div className="flex h-[100px] items-center justify-between gap-4 sm:gap-8">
         <div className="flex flex-1 flex-col gap-2">
-          <h2 className="text-xl font-bold text-foreground">{title}</h2>
+          <h2 className="text-base font-bold text-foreground sm:text-xl">
+            {title}
+          </h2>
           <time className="text-sm text-muted">{date.slice(0, 10)}</time>
           {tags.length > 0 && (
             <div className="flex flex-wrap gap-[10px]">
