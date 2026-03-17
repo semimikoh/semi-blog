@@ -1,0 +1,50 @@
+.prose {
+  max-width: none;
+  line-height: 1.75;
+  font-size: 0.95rem;
+}
+
+.prose p {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.prose span code {
+  background-color: var(--foreground) !important;
+  color: var(--background) !important;
+}
+
+.prose ul {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.prose li::marker {
+  color: var(--primary);
+}
+
+.prose img {
+  max-height: 500px;
+  margin: 12px auto 30px auto;
+}
+
+.prose hr {
+  border-color: var(--primary);
+}
+
+.prose blockquote {
+  border-image: none !important;
+  border-color: #22c55e !important;
+}
+
+.prose a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-weight: 400;
+}
+
+.prose h2 {
+  margin-top: 2.5rem;
+  font-weight: 800;
+}

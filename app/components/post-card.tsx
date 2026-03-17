@@ -1,0 +1,55 @@
+import Image from 'next/image';
+import Link from 'next/link';
+
+interface PostCardProps {
+  title: string;
+  date: string;
+  slug: string;
+  tags?: string[];
+  thumbnail?: string;
+}
+
+export default function PostCard({
+  title,
+  date,
+  slug,
+  tags = [],
+  thumbnail,
+}: PostCardProps) {
+  return (
+    <Link href={`/posts/${slug}`} className="group block border-b py-[15px]">
+      <div className="flex h-[100px] items-center justify-between gap-8">
+        <div className="flex flex-1 flex-col gap-2">
+          <h2 className="text-xl font-bold text-foreground">{title}</h2>
+          <time className="text-sm text-muted">{date.slice(0, 10)}</time>
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-[10px]">
+              {tags.map((tag) => (
+                <span key={tag} className="text-xs text-muted">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="hidden shrink-0 sm:block">
+          {thumbnail ? (
+            <Image
+              src={thumbnail}
+              alt={title}
+              width={160}
+              height={112}
+              className="rounded object-cover"
+            />
+          ) : (
+            <div className="flex h-[100px] w-[160px] items-center justify-center rounded bg-[#e0f5f0] px-3">
+              <span className="line-clamp-3 text-center text-sm font-bold text-black">
+                {title}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
