@@ -17,24 +17,27 @@ export default function Header() {
     <header className="sticky top-0 z-50 mt-6 flex h-14 items-center justify-between border-b bg-background px-5">
       <Link
         href="/"
-        className="hidden text-xl font-extrabold tracking-tight sm:block"
+        className={`hidden text-xl font-extrabold tracking-tight sm:block ${
+          pathname === '/' ? 'text-accent' : 'text-foreground'
+        }`}
       >
         SEMIKOH
       </Link>
       <nav className="flex items-center space-x-3 text-sm font-medium sm:space-x-6 sm:text-lg">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`py-3 font-extrabold text-primary transition-colors hover:font-black ${
-              pathname.startsWith(item.href)
-                ? 'font-black underline underline-offset-4'
-                : ''
-            }`}
-          >
-            {item.label}
-          </Link>
-        ))}
+        {navItems.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`py-3 font-extrabold transition-colors ${
+                isActive ? 'text-accent italic' : 'text-foreground'
+              }`}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
     </header>
   );

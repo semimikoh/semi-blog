@@ -9,6 +9,7 @@
   --card-foreground: hsl(227 80% 57%);
   --primary: hsl(223 79% 57%);
   --border: hsl(220 13% 85%);
+  --accent: #22c55e;
 }
 
 @theme inline {
@@ -19,6 +20,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
   --color-border: var(--border);
+  --color-accent: var(--accent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -54,5 +56,8 @@ body {
 
 a {
   text-decoration: none;
+}
+
+a:not([class*='text-']) {
   color: inherit;
 }
