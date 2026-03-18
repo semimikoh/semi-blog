@@ -17,10 +17,10 @@ export default function PostCard({
   thumbnail,
 }: PostCardProps) {
   return (
-    <Link href={`/posts/${slug}`} className="group block border-b py-[15px]">
+    <Link href={`/posts/${slug}`} className="group block py-[15px]">
       <div className="flex h-[100px] items-center justify-between gap-4 sm:gap-8">
         <div className="flex flex-1 flex-col gap-2">
-          <h2 className="text-base font-bold text-foreground sm:text-xl">
+          <h2 className="text-base font-bold text-foreground group-hover:underline group-hover:underline-offset-4 sm:text-xl">
             {title}
           </h2>
           <time className="text-sm text-muted">{date.slice(0, 10)}</time>

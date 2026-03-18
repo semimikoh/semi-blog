@@ -1,0 +1,47 @@
+{
+  "스킬": [
+    {
+      "카테고리": "Framework / Library",
+      "목록": [
+        "React",
+        "Next.js",
+        "React Router",
+        "TanStack Query",
+        "TanStack Table",
+        "React Hook Form",
+        "Zod",
+        "Tailwind CSS"
+      ]
+    },
+    {
+      "카테고리": "Language",
+      "목록": ["TypeScript", "JavaScript"]
+    },
+    {
+      "카테고리": "State Management",
+      "목록": ["Jotai", "MobX"]
+    },
+    {
+      "카테고리": "Testing",
+      "목록": ["Jest", "Cucumber", "Puppeteer"]
+    },
+    {
+      "카테고리": "Legacy",
+      "목록": ["JSP", "AngularJS"]
+    }
+  ],
+  "오픈소스": [
+    {
+      "이름": "Node.js",
+      "설명": "Buffer.byteLength Base64 benchmark 입력 처리 오류 수정"
+    },
+    {
+      "이름": "Mantine",
+      "설명": "Badge 컴포넌트 radius 적용 시 circle 렌더링 개선"
+    },
+    {
+      "이름": "Slate.js",
+      "설명": "slate-dom peer dependency 불일치 regression 오류 해결"
+    }
+  ]
+}

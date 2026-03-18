@@ -18,7 +18,7 @@ export default async function PostPage({ params }: PostPageProps) {
   if (!post) notFound();
 
   return (
-    <article className="px-2 pt-7 pb-16 sm:px-5">
+    <article className="pt-7 pb-16">
       <header className="mb-10">
         <h1 className="text-xl font-bold sm:text-2xl">{post.title}</h1>
         <time className="mt-2 block text-sm text-muted">

@@ -9,7 +9,10 @@
   --card-foreground: hsl(227 80% 57%);
   --primary: hsl(223 79% 57%);
   --border: hsl(220 13% 85%);
-  --accent: #22c55e;
+  --green: #22c55e;
+  --purple: #8b5cf6;
+  --gray: #9ca3af;
+  --accent: var(--gray);
 }
 
 @theme inline {
@@ -21,6 +24,8 @@
   --color-primary: var(--primary);
   --color-border: var(--border);
   --color-accent: var(--accent);
+  --color-green: var(--green);
+  --color-purple: var(--purple);
 }
 
 @media (prefers-color-scheme: dark) {

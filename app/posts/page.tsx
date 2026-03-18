@@ -9,7 +9,7 @@ export default function PostsPage() {
   const allTags = [...new Set(posts.flatMap((post) => post.tags))];
 
   return (
-    <div className="flex flex-col gap-5 px-5 pt-3 pb-16">
+    <div className="flex flex-col gap-5 pt-3 pb-16">
       <PostList posts={sortedPosts} allTags={allTags} />
     </div>
   );

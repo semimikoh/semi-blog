@@ -7,8 +7,8 @@ export default function Home() {
     .slice(0, 3);
 
   return (
-    <div className="flex flex-col gap-5 px-5 pt-3 pb-16">
-      <h3 className="text-2xl font-extrabold text-accent">Recent Posts</h3>
+    <div className="flex flex-col gap-5 pt-3 pb-16">
+      <h3 className="text-2xl font-bold text-accent">Recent Posts</h3>
       <div>
         {recentPosts.map((post) => (
           <PostCard
