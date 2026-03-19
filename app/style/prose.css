@@ -20,9 +20,17 @@
   margin-bottom: 0.75em;
 }
 
-.prose span code {
-  background-color: var(--foreground) !important;
-  color: var(--background) !important;
+.prose code:not(pre code) {
+  background-color: #f1f1f1;
+  color: var(--foreground);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.prose code:not(pre code)::before,
+.prose code:not(pre code)::after {
+  content: none;
 }
 
 .prose ul {
