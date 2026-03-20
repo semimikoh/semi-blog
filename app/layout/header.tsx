@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const navItems = [
+const navItems: { href: string; label: string; disabled?: boolean }[] = [
   { href: '/', label: 'HOME' },
   { href: '/posts', label: 'POSTS' },
   { href: '/about', label: 'ABOUT' },
-  { href: '/project', label: 'PROJECT' },
+  { href: '/project', label: 'PROJECT', disabled: true },
   // { href: '/guestbook', label: 'GUEST' },
 ];
 
@@ -22,6 +22,16 @@ export default function Header() {
             item.href === '/'
               ? pathname === '/'
               : pathname.startsWith(item.href);
+          if (item.disabled) {
+            return (
+              <span
+                key={item.href}
+                className="cursor-not-allowed py-3 font-extrabold text-muted/15 line-through"
+              >
+                {item.label}
+              </span>
+            );
+          }
           return (
             <Link
               key={item.href}
