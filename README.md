@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# semi-blog
 
-## Getting Started
+개인 기술 블로그입니다.
 
-First, run the development server:
+## Tech Stack
+
+- Next.js (App Router)
+- MDX + Velite
+- Tailwind CSS
+- pnpm
+
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+├── app/
+│   ├── about/          # About 페이지
+│   ├── components/     # 공통 컴포넌트
+│   ├── guestbook/      # 방명록 페이지
+│   ├── layout/         # Header, Footer
+│   ├── posts/          # 포스트 목록 및 상세 페이지
+│   ├── project/        # 프로젝트 페이지
+│   ├── style/          # 글로벌 CSS, prose 스타일
+│   └── page.tsx        # 홈페이지
+├── content/
+│   └── posts/          # MDX 포스트 파일
+├── public/             # 정적 파일
+└── velite.config.ts    # Velite 설정
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Posts
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`content/posts/` 디렉토리에 MDX 파일을 추가하고 `pnpm velite`로 빌드합니다.
