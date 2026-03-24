@@ -33,15 +33,34 @@
   "오픈소스": [
     {
       "이름": "Node.js",
-      "설명": "Buffer.byteLength Base64 benchmark 입력 처리 오류 수정"
+      "기여": [
+        {
+          "설명": "Buffer.byteLength Base64 benchmark 입력 처리 오류 수정",
+          "링크": "https://github.com/nodejs/node/pull/60841"
+        },
+        {
+          "설명": "Worker env 옵션 미제공 시 NODE_OPTIONS 파싱 누락 수정",
+          "링크": "https://github.com/nodejs/node/pull/62306"
+        }
+      ]
     },
     {
       "이름": "Mantine",
-      "설명": "Badge 컴포넌트 radius 적용 시 circle 렌더링 개선"
+      "기여": [
+        {
+          "설명": "Badge 컴포넌트 radius 적용 시 circle 렌더링 개선",
+          "링크": "https://github.com/mantinedev/mantine/issues/8465"
+        }
+      ]
     },
     {
       "이름": "Slate.js",
-      "설명": "slate-dom peer dependency 불일치 regression 오류 해결"
+      "기여": [
+        {
+          "설명": "slate-dom peer dependency 불일치 regression 오류 해결",
+          "링크": "https://github.com/ianstormtaylor/slate/pull/5976"
+        }
+      ]
     }
   ]
 }

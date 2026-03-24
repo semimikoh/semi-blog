@@ -12,7 +12,7 @@ export default function Skills({ 스킬 }: SkillsProps) {
     <div className="flex flex-col gap-3">
       {스킬.map((group) => (
         <div key={group.카테고리} className="flex items-baseline gap-3">
-          <span className="w-[160px] shrink-0 text-sm font-semibold">
+          <span className="w-[90px] shrink-0 text-sm font-semibold">
             {group.카테고리}
           </span>
           <span className="text-sm text-foreground/70">

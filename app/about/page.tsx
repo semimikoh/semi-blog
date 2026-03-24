@@ -48,11 +48,28 @@ export default function AboutPage() {
       {/* Open Source */}
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-bold">Open Source</h2>
-        <ul className="flex flex-col gap-2 text-sm">
+        <ul className="flex flex-col gap-3 text-sm">
           {skillsData.오픈소스.map((item) => (
-            <li key={item.이름}>
-              <span className="font-semibold">{item.이름}</span>
-              <span className="text-muted"> — {item.설명}</span>
+            <li key={item.이름} className="flex items-baseline gap-3">
+              <span className="w-[90px] shrink-0 font-semibold">
+                {item.이름}
+              </span>
+              <div className="flex flex-col gap-0.5 text-foreground/70">
+                {item.기여.map((c) => (
+                  <span key={c.링크}>
+                    {c.설명}
+                    {c.링크 && (
+                      <Link
+                        href={c.링크}
+                        target="_blank"
+                        className="ml-1 text-[13px] text-blue-500 transition-opacity hover:opacity-60"
+                      >
+                        (#{c.링크.split('/').pop()})
+                      </Link>
+                    )}
+                  </span>
+                ))}
+              </div>
             </li>
           ))}
         </ul>
