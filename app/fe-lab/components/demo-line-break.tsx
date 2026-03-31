@@ -302,7 +302,7 @@ export function DemoLineBreak() {
       <p className="text-[14px] text-muted">
         {mode === 'linear'
           ? '한 글자씩 순차적으로 측정하며 maxWidth를 초과하는 지점을 찾습니다.'
-          : '이분 탐색으로 조건을 만족하는 최대 인덱스를 찾습니다.'}
+          : '파라메트릭 서치로 조건을 만족하는 최대 인덱스를 찾습니다.'}
       </p>
 
       <table className="solid-borders max-w-xs text-[12px]">
