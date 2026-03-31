@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { Play, Pause, Square } from 'lucide-react';
 import { useCanvas } from './use-canvas';
 import {
   linearSearchBreakPoint,
@@ -10,11 +11,27 @@ import {
 const SAMPLE_TEXT =
   '안녕하세요, 캔버스 텍스트 에디터에서 줄바꿈 지점을 찾는 알고리즘입니다. 선형 탐색 vs 파라메트릭 서치!';
 
+function getCanvasPos(
+  canvas: HTMLCanvasElement,
+  e: React.MouseEvent | MouseEvent | React.TouchEvent | TouchEvent,
+) {
+  const rect = canvas.getBoundingClientRect();
+  if ('touches' in e) {
+    const touch = e.touches[0] || e.changedTouches[0];
+    return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+  }
+  return {
+    x: (e as MouseEvent).clientX - rect.left,
+    y: (e as MouseEvent).clientY - rect.top,
+  };
+}
+
 export function DemoLineBreak() {
   const [maxWidth, setMaxWidth] = useState(280);
   const [mode, setMode] = useState<'linear' | 'parametric'>('linear');
   const [animStep, setAnimStep] = useState(-1);
   const timerRef = useRef<number | null>(null);
+  const dragging = useRef(false);
 
   const draw = useCallback(
     (ctx: CanvasRenderingContext2D, cw: number, ch: number) => {
@@ -26,50 +43,54 @@ export function DemoLineBreak() {
           ? linearSearchBreakPoint(measureFn, SAMPLE_TEXT.length, maxWidth)
           : parametricSearchBreakPoint(measureFn, SAMPLE_TEXT.length, maxWidth);
 
-      const visibleSteps = animStep >= 0 ? steps.slice(0, animStep + 1) : steps;
-      const textY = 50;
-      const barStartX = 30;
-      const barHeight = 24;
-      const stepAreaY = textY + barHeight + 40;
-      const stepH = 32;
+      const visibleSteps = animStep >= 0 ? steps.slice(0, animStep + 1) : [];
+      const textY = 30;
+      const barStartX = 0;
+      const barHeight = 34;
+      const stepAreaY = textY + barHeight + 25;
+      const stepH = 26;
       const maxVisible = Math.floor((ch - stepAreaY - 10) / stepH);
       const startIdx = Math.max(0, visibleSteps.length - maxVisible);
       const displaySteps = visibleSteps.slice(startIdx);
 
-      // 텍스트 배경
-      ctx.fillStyle = '#e5e7eb';
-      ctx.fillRect(
-        barStartX,
-        textY,
-        ctx.measureText(SAMPLE_TEXT).width,
-        barHeight,
-      );
+      // 텍스트 배경 (maxWidth까지)
+      ctx.fillStyle = '#88888826';
+      ctx.fillRect(barStartX, textY, maxWidth, barHeight);
 
       // maxWidth 한계선
-      ctx.strokeStyle = '#ef4444';
+      const lineX = barStartX + maxWidth;
+      ctx.strokeStyle = '#f59e0b';
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 3]);
       ctx.beginPath();
-      ctx.moveTo(barStartX + maxWidth, textY - 10);
-      ctx.lineTo(barStartX + maxWidth, textY + barHeight + 10);
+      ctx.moveTo(lineX, textY - 14);
+      ctx.lineTo(lineX, textY + barHeight + 10);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = '#ef4444';
-      ctx.font = '12px monospace';
-      ctx.fillText(
-        `maxWidth = ${maxWidth}px`,
-        barStartX + maxWidth + 5,
-        textY - 2,
-      );
 
-      // 텍스트
+      // 드래그 핸들 (역삼각형)
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.moveTo(lineX, textY - 10);
+      ctx.lineTo(lineX - 8, textY - 22);
+      ctx.lineTo(lineX + 8, textY - 22);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = '12px monospace';
+      ctx.fillText(`${maxWidth}px`, lineX + 10, textY - 7);
+
+      // 텍스트 (배경 높이 기준 중앙)
       ctx.font = '16px sans-serif';
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillText(SAMPLE_TEXT, barStartX, textY + 17);
+      ctx.fillStyle = '#666666';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(SAMPLE_TEXT, barStartX, textY + barHeight / 2);
+      ctx.textBaseline = 'alphabetic';
 
       // 생략 표시
       if (startIdx > 0) {
-        ctx.fillStyle = '#9ca3af';
+        ctx.fillStyle = '#888888';
         ctx.font = '12px monospace';
         ctx.fillText(`... ${startIdx}개 스텝 생략`, barStartX, stepAreaY - 8);
       }
@@ -80,15 +101,13 @@ export function DemoLineBreak() {
         const y = stepAreaY + i * stepH;
         const barW = Math.min(step.width, cw - barStartX - 20);
 
-        ctx.fillStyle = step.fits
-          ? 'rgba(34,197,94,0.2)'
-          : 'rgba(239,68,68,0.2)';
+        ctx.fillStyle = step.fits ? '#22c55e33' : '#ef444433';
         ctx.fillRect(barStartX, y, barW, 22);
         ctx.strokeStyle = step.fits ? '#22c55e' : '#ef4444';
         ctx.lineWidth = 1;
         ctx.strokeRect(barStartX, y, barW, 22);
 
-        ctx.fillStyle = '#6b7280';
+        ctx.fillStyle = '#888888';
         if (mode === 'parametric') {
           ctx.fillText(
             `[${step.left},${step.right}] mid=${step.mid}`,
@@ -106,16 +125,6 @@ export function DemoLineBreak() {
           y + 15,
         );
       });
-
-      // 결과 표시
-      if (animStep < 0 || animStep >= steps.length - 1) {
-        const rw = ctx.measureText(SAMPLE_TEXT.substring(0, result)).width;
-        ctx.fillStyle = 'rgba(59,130,246,0.12)';
-        ctx.fillRect(barStartX, textY, rw, barHeight);
-        ctx.strokeStyle = '#3b82f6';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(barStartX, textY, rw, barHeight);
-      }
     },
     [maxWidth, mode, animStep],
   );
@@ -137,57 +146,120 @@ export function DemoLineBreak() {
     };
   };
 
+  const [isPlaying, setIsPlaying] = useState(false);
+
   const startAnimation = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     setAnimStep(0);
+    setIsPlaying(true);
     let step = 0;
     timerRef.current = window.setInterval(() => {
       step++;
       setAnimStep(step);
       if (step >= 30) {
         if (timerRef.current) clearInterval(timerRef.current);
+        setIsPlaying(false);
       }
     }, 500);
   };
 
+  const pauseAnimation = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    setIsPlaying(false);
+  };
+
+  const stopAnimation = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    setIsPlaying(false);
+    setAnimStep(-1);
+  };
+
+  const handleStart = useCallback(
+    (
+      e:
+        | React.MouseEvent<HTMLCanvasElement>
+        | React.TouchEvent<HTMLCanvasElement>,
+    ) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const pos = getCanvasPos(canvas, e);
+      // 역삼각형 핸들 클릭 판정
+      const textY = 30;
+      if (
+        Math.abs(pos.x - maxWidth) < 15 &&
+        pos.y >= textY - 30 &&
+        pos.y <= textY
+      ) {
+        dragging.current = true;
+      }
+    },
+    [canvasRef, maxWidth],
+  );
+
+  const handleMove = useCallback(
+    (
+      e:
+        | React.MouseEvent<HTMLCanvasElement>
+        | React.TouchEvent<HTMLCanvasElement>,
+    ) => {
+      if (!dragging.current) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const pos = getCanvasPos(canvas, e);
+      const newWidth = Math.round(Math.max(50, Math.min(500, pos.x)));
+      setMaxWidth(newWidth);
+      setAnimStep(-1);
+    },
+    [canvasRef],
+  );
+
+  const handleEnd = useCallback(() => {
+    dragging.current = false;
+  }, []);
+
   const counts = getStepCounts();
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2 overflow-hidden">
+      <p className="text-[12px] text-foreground/30">
+        노란색 삼각형을 클릭하면 텍스트 너비를 조정할 수 있습니다
+      </p>
       <canvas
         ref={canvasRef}
-        className="h-[400px] w-full rounded-lg border border-border bg-background"
+        className="block h-[180px] w-full max-w-full rounded-lg border-none bg-background sm:h-[280px]"
+        style={{ touchAction: 'none' }}
+        onMouseDown={handleStart}
+        onMouseMove={(e) => {
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+          const pos = getCanvasPos(canvas, e);
+          const textY = 30;
+          const nearHandle =
+            Math.abs(pos.x - maxWidth) < 15 &&
+            pos.y >= textY - 30 &&
+            pos.y <= textY;
+          canvas.style.cursor = nearHandle ? 'col-resize' : 'default';
+          handleMove(e);
+        }}
+        onMouseUp={handleEnd}
+        onMouseLeave={handleEnd}
+        onTouchStart={handleStart}
+        onTouchMove={handleMove}
+        onTouchEnd={handleEnd}
       />
 
-      <div className="flex items-center gap-3">
-        <span className="w-28 text-xs text-muted">
-          최대 너비:{' '}
-          <span className="font-semibold text-foreground">{maxWidth}px</span>
-        </span>
-        <input
-          type="range"
-          min={100}
-          max={450}
-          step={10}
-          value={maxWidth}
-          onChange={(e) => {
-            setMaxWidth(Number(e.target.value));
-            setAnimStep(-1);
-          }}
-          className="flex-1 accent-[var(--primary)]"
-        />
-      </div>
-
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={() => {
             setMode('linear');
             setAnimStep(-1);
           }}
-          className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+          className={`text-[14px] font-semibold transition-colors ${
             mode === 'linear'
-              ? 'bg-foreground text-background font-semibold'
-              : 'bg-card text-muted hover:text-foreground'
+              ? 'text-foreground/70 [background:linear-gradient(transparent_60%,var(--highlight)_60%)]'
+              : 'text-muted hover:text-foreground'
           }`}
         >
           선형 탐색 O(n)
@@ -197,64 +269,74 @@ export function DemoLineBreak() {
             setMode('parametric');
             setAnimStep(-1);
           }}
-          className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+          className={`text-[14px] font-semibold transition-colors ${
             mode === 'parametric'
-              ? 'bg-foreground text-background font-semibold'
-              : 'bg-card text-muted hover:text-foreground'
+              ? 'text-foreground/70 [background:linear-gradient(transparent_60%,var(--highlight)_60%)]'
+              : 'text-muted hover:text-foreground'
           }`}
         >
           파라메트릭 서치 O(log n)
         </button>
+        <span className="block w-full sm:hidden" />
+        <span className="hidden sm:inline"> </span>
         <button
           onClick={startAnimation}
-          className="rounded-md bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 transition-colors hover:bg-green-100"
+          className="flex items-center gap-1 text-[14px] font-semibold text-foreground/50 transition-colors hover:text-foreground/70"
         >
-          ▶ 애니메이션
+          <Play size={14} /> 재생
+        </button>
+        <button
+          onClick={pauseAnimation}
+          className="flex items-center gap-1 text-[14px] font-semibold text-foreground/50 transition-colors hover:text-foreground/70"
+        >
+          <Pause size={14} /> 일시정지
+        </button>
+        <button
+          onClick={stopAnimation}
+          className="flex items-center gap-1 text-[14px] font-semibold text-foreground/50 transition-colors hover:text-foreground/70"
+        >
+          <Square size={14} /> 멈춤
         </button>
       </div>
 
-      <div className="rounded-lg border border-border bg-background p-4">
-        <h3 className="mb-2 font-bold text-foreground">
-          {mode === 'linear' ? '선형 탐색' : '파라메트릭 서치'}
-        </h3>
-        <p className="text-sm text-muted">
-          {mode === 'linear'
-            ? '한 글자씩 순차적으로 측정하며 maxWidth를 초과하는 지점을 찾습니다.'
-            : '이분 탐색으로 조건을 만족하는 최대 인덱스를 찾습니다.'}
-        </p>
-        <p className="mt-1 text-sm text-muted">
-          시간복잡도:{' '}
-          <strong className="text-foreground">
-            {mode === 'linear' ? 'O(n)' : 'O(log n)'}
-          </strong>
-        </p>
+      <p className="text-[14px] text-muted">
+        {mode === 'linear'
+          ? '한 글자씩 순차적으로 측정하며 maxWidth를 초과하는 지점을 찾습니다.'
+          : '이분 탐색으로 조건을 만족하는 최대 인덱스를 찾습니다.'}
+      </p>
 
-        <table className="mt-3 w-full text-xs">
-          <thead>
-            <tr className="text-muted">
-              <th className="py-1 text-left"></th>
-              <th className="py-1 text-right">선형</th>
-              <th className="py-1 text-right">파라메트릭</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="py-0.5 text-muted">복잡도</td>
-              <td className="py-0.5 text-right">O(n)</td>
-              <td className="py-0.5 text-right">O(log n)</td>
-            </tr>
-            <tr>
-              <td className="py-0.5 text-muted">탐색 수</td>
-              <td className="py-0.5 text-right font-semibold">
-                {counts.linear}
-              </td>
-              <td className="py-0.5 text-right font-semibold">
-                {counts.param}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <table className="solid-borders max-w-xs text-[12px]">
+        <thead>
+          <tr>
+            <th className="border-b border-foreground/15 px-5 py-1.5 text-center text-muted"></th>
+            <th className="border-b border-foreground/15 px-5 py-1.5 text-center font-bold text-muted">
+              선형
+            </th>
+            <th className="border-b border-foreground/15 px-5 py-1.5 text-center font-bold text-muted">
+              파라메트릭
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="px-5 py-1.5 text-center text-muted">복잡도</td>
+            <td className="px-5 py-1.5 text-center">O(n)</td>
+            <td className="px-5 py-1.5 text-center">O(log n)</td>
+          </tr>
+          <tr>
+            <td className="px-5 py-1.5 text-center text-muted">탐색 수</td>
+            <td
+              className="px-5 py-1.5 text-center font-semibold"
+              style={{ color: '#f59e0b' }}
+            >
+              {counts.linear}
+            </td>
+            <td className="px-5 py-1.5 text-center font-semibold text-primary">
+              {counts.param}
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }

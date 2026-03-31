@@ -176,7 +176,6 @@ export function DemoRotation() {
         | React.MouseEvent<HTMLCanvasElement>
         | React.TouchEvent<HTMLCanvasElement>,
     ) => {
-      if ('touches' in e) e.preventDefault();
       const canvas = canvasRef.current;
       if (!canvas) return;
       const pos = getCanvasPos(canvas, e);
@@ -206,7 +205,6 @@ export function DemoRotation() {
         | React.MouseEvent<HTMLCanvasElement>
         | React.TouchEvent<HTMLCanvasElement>,
     ) => {
-      if ('touches' in e) e.preventDefault();
       if (!dragMode.current) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
