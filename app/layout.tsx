@@ -11,6 +11,7 @@ const pretendard = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://colonni.xyz'),
   title: "colonni's blog",
   description: "colonni's blog",
   openGraph: {
