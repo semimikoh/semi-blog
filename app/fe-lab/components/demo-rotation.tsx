@@ -50,7 +50,7 @@ export function DemoRotation() {
 
   const draw = useCallback(
     (ctx: CanvasRenderingContext2D, cw: number, ch: number) => {
-      const cx = cw / 2;
+      const cx = cw / 2 - 40;
       const cy = ch / 2 - 10;
       canvasCenter.current = { x: cx, y: cy };
       const { W, H } = boundingSize(w, h, angle);

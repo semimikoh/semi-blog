@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DemoRotation } from './components/demo-rotation';
 import { DemoLineBreak } from './components/demo-line-break';
+import { DemoNonogram } from './components/demo-nonogram';
 
 const TABS = [
   {
@@ -18,6 +19,12 @@ const TABS = [
     label: '탐색 최적화 O(n)→O(log n)',
     link: '/posts/math-for-development',
     desc: '텍스트 줄바꿈을 직접 해줘야 한다면 텍스트 너비를 알아야 합니다. 선형 탐색을 파라메트릭 바이너리 서치로 최적화했습니다.\n노란 삼각형을 드래그하여 너비를 조절해보세요.',
+  },
+  {
+    id: 'nonogram',
+    label: '네모네모 로직',
+    link: '',
+    desc: 'og-image.png를 30x30으로 다운스케일하여 만든 네모네모 로직 퍼즐입니다.\n클릭으로 채우고, 우클릭(또는 길게 누르기)으로 X 표시를 할 수 있습니다.',
   },
 ] as const;
 
@@ -50,7 +57,7 @@ function FeLabContent() {
             >
               {tab.label}
             </button>
-            {activeTab === tab.id && (
+            {activeTab === tab.id && tab.link && (
               <Link
                 href={tab.link}
                 className="text-xs text-primary hover:underline"
@@ -69,6 +76,7 @@ function FeLabContent() {
       <div>
         {activeTab === 'rotation' && <DemoRotation />}
         {activeTab === 'linebreak' && <DemoLineBreak />}
+        {activeTab === 'nonogram' && <DemoNonogram />}
       </div>
     </div>
   );
