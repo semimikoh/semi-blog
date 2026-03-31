@@ -13,6 +13,7 @@
   --purple: #8b5cf6;
   --gray: #9ca3af;
   --accent: var(--gray);
+  --highlight: #4ade804d;
 }
 
 @theme inline {
@@ -26,6 +27,7 @@
   --color-accent: var(--accent);
   --color-green: var(--green);
   --color-purple: var(--purple);
+  --color-highlight: var(--highlight);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -51,6 +53,12 @@
       transparent 20px
     )
     1;
+}
+
+.solid-borders,
+.solid-borders * {
+  border-style: solid !important;
+  border-image: none !important;
 }
 
 html {

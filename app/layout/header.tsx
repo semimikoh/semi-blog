@@ -7,6 +7,7 @@ const navItems: { href: string; label: string; disabled?: boolean }[] = [
   { href: '/', label: 'HOME' },
   { href: '/posts', label: 'POSTS' },
   { href: '/about', label: 'ABOUT' },
+  { href: '/fe-lab', label: 'PLAYGROUND' },
   { href: '/project', label: 'PROJECT', disabled: true },
   // { href: '/guestbook', label: 'GUEST' },
 ];
