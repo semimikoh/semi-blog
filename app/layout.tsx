@@ -11,8 +11,14 @@ const pretendard = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'semikoh',
-  description: "semikoh's blog",
+  title: "colonni's blog",
+  description: "colonni's blog",
+  openGraph: {
+    title: "colonni's blog",
+    description: "colonni's blog",
+    siteName: "colonni's blog",
+    images: ['/og-image.png'],
+  },
 };
 
 export default function RootLayout({
