@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Sun, Moon } from 'lucide-react';
 
 const navItems: { href: string; label: string; disabled?: boolean }[] = [
   { href: '/', label: 'HOME' },
@@ -14,9 +16,35 @@ const navItems: { href: string; label: string; disabled?: boolean }[] = [
 
 export default function Header() {
   const pathname = usePathname();
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    if (
+      saved === 'dark' ||
+      (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    ) {
+      setDark(true);
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = !dark;
+    setDark(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
+      localStorage.setItem('theme', 'light');
+    }
+  };
 
   return (
-    <header className="sticky top-0 z-50 mt-6 flex h-14 items-center bg-background">
+    <header className="sticky top-0 z-50 mt-6 flex h-14 items-center justify-between bg-background">
       <nav className="flex items-center space-x-3 text-sm font-medium tracking-[-0.075em] sm:space-x-4 sm:text-[18px]">
         {navItems.map((item) => {
           const isActive =
@@ -46,6 +74,13 @@ export default function Header() {
           );
         })}
       </nav>
+      <button
+        onClick={toggleTheme}
+        className="text-foreground/60 transition-colors hover:text-foreground"
+        aria-label="테마 변경"
+      >
+        {dark ? <Moon size={20} /> : <Sun size={20} />}
+      </button>
     </header>
   );
 }

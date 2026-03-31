@@ -26,21 +26,23 @@ export function WalkingDog() {
 
     ctx.clearRect(0, 0, w, h);
 
+    const dark = document.documentElement.classList.contains('dark');
+
     // 하늘
-    ctx.fillStyle = '#e8f4f8';
+    ctx.fillStyle = dark ? '#1a1a2e' : '#e8f4f8';
     ctx.fillRect(0, 0, w, h * 0.6);
 
     // 잔디
-    ctx.fillStyle = '#a8d5a2';
+    ctx.fillStyle = dark ? '#2d4a2d' : '#a8d5a2';
     ctx.fillRect(0, h * 0.6, w, h * 0.15);
 
     // 산책길
-    ctx.fillStyle = '#d4c4a8';
+    ctx.fillStyle = dark ? '#3a3428' : '#d4c4a8';
     ctx.fillRect(0, h * 0.7, w, h * 0.15);
 
     // 산책길 점선
     ctx.setLineDash([8, 8]);
-    ctx.strokeStyle = '#c4b498';
+    ctx.strokeStyle = dark ? '#4a4438' : '#c4b498';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, h * 0.775);
@@ -49,18 +51,18 @@ export function WalkingDog() {
     ctx.setLineDash([]);
 
     // 아래 잔디
-    ctx.fillStyle = '#a8d5a2';
+    ctx.fillStyle = dark ? '#2d4a2d' : '#a8d5a2';
     ctx.fillRect(0, h * 0.85, w, h * 0.15);
 
     // 구름
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = dark ? '#333344' : '#ffffff';
     drawCloud(ctx, w * 0.2, h * 0.15, 30);
     drawCloud(ctx, w * 0.6, h * 0.25, 22);
     drawCloud(ctx, w * 0.85, h * 0.1, 26);
 
     // 나무
-    drawTree(ctx, w * 0.1, h * 0.55);
-    drawTree(ctx, w * 0.9, h * 0.52);
+    drawTree(ctx, w * 0.1, h * 0.55, dark);
+    drawTree(ctx, w * 0.9, h * 0.52, dark);
 
     // 랜덤 점프 (5초 이상 간격)
     if (
@@ -110,12 +112,33 @@ export function WalkingDog() {
 
     // 다리 (4개)
     ctx.fillStyle = '#e8c98a';
+    const legBounce = jumping.current ? bounce : 0;
     // 뒷다리
-    ctx.fillRect(dx + p * 2, groundY - p * 3 + legAnim, p * 2, p * 4);
-    ctx.fillRect(dx + p * 3, groundY - p * 3 - legAnim, p * 2, p * 4);
+    ctx.fillRect(
+      dx + p * 2,
+      groundY - p * 3 + legAnim + legBounce,
+      p * 2,
+      p * 4,
+    );
+    ctx.fillRect(
+      dx + p * 3,
+      groundY - p * 3 - legAnim + legBounce,
+      p * 2,
+      p * 4,
+    );
     // 앞다리
-    ctx.fillRect(dx + p * 9, groundY - p * 3 - legAnim, p * 2, p * 4);
-    ctx.fillRect(dx + p * 10, groundY - p * 3 + legAnim, p * 2, p * 4);
+    ctx.fillRect(
+      dx + p * 9,
+      groundY - p * 3 - legAnim + legBounce,
+      p * 2,
+      p * 4,
+    );
+    ctx.fillRect(
+      dx + p * 10,
+      groundY - p * 3 + legAnim + legBounce,
+      p * 2,
+      p * 4,
+    );
 
     // 몸통 (분홍 옷)
     ctx.fillStyle = '#f5a0b0';
@@ -238,16 +261,21 @@ function drawCloud(
   ctx.fill();
 }
 
-function drawTree(ctx: CanvasRenderingContext2D, x: number, y: number) {
+function drawTree(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  dark = false,
+) {
   // 기둥
-  ctx.fillStyle = '#8B6914';
+  ctx.fillStyle = dark ? '#5a4a20' : '#8B6914';
   ctx.fillRect(x - 4, y, 8, 20);
   // 잎
-  ctx.fillStyle = '#6aad6a';
+  ctx.fillStyle = dark ? '#2a5a2a' : '#6aad6a';
   ctx.beginPath();
   ctx.arc(x, y - 5, 18, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#5a9d5a';
+  ctx.fillStyle = dark ? '#1a4a1a' : '#5a9d5a';
   ctx.beginPath();
   ctx.arc(x + 8, y - 2, 12, 0, Math.PI * 2);
   ctx.fill();

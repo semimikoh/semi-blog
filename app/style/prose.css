@@ -4,6 +4,7 @@
   font-size: 0.95rem;
   overflow-wrap: break-word;
   word-break: break-word;
+  color: var(--foreground);
 }
 
 .prose pre {
@@ -21,7 +22,7 @@
 }
 
 .prose code:not(pre code) {
-  background-color: #f1f1f1;
+  background-color: var(--card);
   color: var(--foreground);
   padding: 0.15em 0.4em;
   border-radius: 4px;
@@ -66,4 +67,14 @@
 .prose h2 {
   margin-top: 2.5rem;
   font-weight: 800;
+  color: var(--foreground);
+}
+
+.prose h3,
+.prose h4 {
+  color: var(--foreground);
+}
+
+.prose strong {
+  color: var(--foreground);
 }
