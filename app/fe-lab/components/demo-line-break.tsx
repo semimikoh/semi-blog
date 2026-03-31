@@ -228,7 +228,7 @@ export function DemoLineBreak() {
       </p>
       <canvas
         ref={canvasRef}
-        className="block h-[180px] w-full max-w-full rounded-lg border-none bg-background sm:h-[280px]"
+        className="block h-[310px] w-full max-w-full rounded-lg border-none bg-background sm:h-[280px]"
         style={{ touchAction: 'none' }}
         onMouseDown={handleStart}
         onMouseMove={(e) => {
