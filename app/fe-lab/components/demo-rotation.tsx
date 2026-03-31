@@ -249,26 +249,26 @@ export function DemoRotation() {
 
   return (
     <div className="flex flex-col gap-4 overflow-hidden">
-      <div className="flex flex-col gap-0.5">
-        <p className="text-[14px] text-primary">
+      <p className="text-[14px] text-foreground/60">
+        θ={angle}° · w={w} · h={h}
+      </p>
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          className="block h-[250px] w-full max-w-full rounded-lg border-none bg-background sm:h-[300px]"
+          style={{ cursor: 'crosshair', touchAction: 'none' }}
+          onMouseDown={handleStart}
+          onMouseMove={handleMove}
+          onMouseUp={handleEnd}
+          onMouseLeave={handleEnd}
+          onTouchStart={handleStart}
+          onTouchMove={handleMove}
+          onTouchEnd={handleEnd}
+        />
+        <p className="absolute bottom-2 left-2 text-[12px] text-foreground/30">
           클릭해서 마우스를 움직이면 회전 가능합니다
         </p>
-        <p className="text-[14px] text-foreground/60">
-          θ={angle}° · w={w} · h={h}
-        </p>
       </div>
-      <canvas
-        ref={canvasRef}
-        className="block h-[250px] w-full max-w-full rounded-lg border-none bg-background sm:h-[300px]"
-        style={{ cursor: 'crosshair', touchAction: 'none' }}
-        onMouseDown={handleStart}
-        onMouseMove={handleMove}
-        onMouseUp={handleEnd}
-        onMouseLeave={handleEnd}
-        onTouchStart={handleStart}
-        onTouchMove={handleMove}
-        onTouchEnd={handleEnd}
-      />
 
       <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
