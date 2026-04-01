@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://colonni.xyz'),
   title: "colonni's blog",
   description: "colonni's blog",
+  verification: {
+    google: 'xFu4RFJQkXwDyrzjZIhD83gcq44nmkKgs3e-pX11neM',
+  },
   openGraph: {
     title: "colonni's blog",
     description: "colonni's blog",
