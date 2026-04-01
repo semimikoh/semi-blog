@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { posts } from '#site/content';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -19,6 +20,41 @@ interface PostPageProps {
 
 export function generateStaticParams() {
   return posts.map((post) => ({ slug: post.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: PostPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const post = posts.find((p) => p.slug === slug);
+
+  if (!post) return {};
+
+  const title = `${post.title} | colonni's blog`;
+  const description = post.description;
+  const url = `https://colonni.xyz/posts/${post.slug}`;
+
+  return {
+    title,
+    description,
+    keywords: post.tags,
+    openGraph: {
+      title,
+      description,
+      url,
+      type: 'article',
+      publishedTime: post.date,
+      tags: post.tags,
+      siteName: "colonni's blog",
+      images: ['/og-image.png'],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: ['/og-image.png'],
+    },
+  };
 }
 
 export default async function PostPage({ params }: PostPageProps) {

@@ -20,6 +20,12 @@ export const metadata: Metadata = {
     siteName: "colonni's blog",
     images: ['/og-image.png'],
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: "colonni's blog",
+    description: "colonni's blog",
+    images: ['/og-image.png'],
+  },
 };
 
 export default function RootLayout({

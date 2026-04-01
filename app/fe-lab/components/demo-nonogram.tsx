@@ -1238,7 +1238,7 @@ export function DemoNonogram() {
   );
 
   // Cell size for responsive layout
-  const CELL_PX = 14;
+  const CELL_PX = 16;
   const HINT_COL_W = maxRowHintLen * 18;
 
   return (
@@ -1294,6 +1294,7 @@ export function DemoNonogram() {
             gap: 0,
             userSelect: 'none',
             WebkitUserSelect: 'none',
+            touchAction: 'none',
           }}
           ref={gridRef}
           onMouseDown={(e) => {
@@ -1322,35 +1323,38 @@ export function DemoNonogram() {
           onTouchStart={(e) => {
             const cell = getCellFromTouch(e.touches[0]);
             if (!cell) return;
-            e.preventDefault();
             isLongPress.current = false;
             touchStartCell.current = cell;
             longPressTimer.current = setTimeout(() => {
               isLongPress.current = true;
               toggleCell(cell.y, cell.x, true);
-              setDragMode(cells[cell.y][cell.x] === 2 ? 0 : 2);
             }, 400);
           }}
           onTouchMove={(e) => {
-            e.preventDefault();
             if (longPressTimer.current) {
               clearTimeout(longPressTimer.current);
               longPressTimer.current = null;
             }
-            if (dragMode !== null) {
-              const cell = getCellFromTouch(e.touches[0]);
-              if (cell) setCell(cell.y, cell.x, dragMode);
+            // 드래그로 여러 칸 채우기
+            const cell = getCellFromTouch(e.touches[0]);
+            if (cell && !isLongPress.current) {
+              const prev = touchStartCell.current;
+              if (prev && (prev.y !== cell.y || prev.x !== cell.x)) {
+                if (cells[cell.y][cell.x] !== 1) {
+                  setCell(cell.y, cell.x, 1);
+                }
+              }
             }
           }}
           onTouchEnd={() => {
             if (longPressTimer.current) {
               clearTimeout(longPressTimer.current);
               longPressTimer.current = null;
-              // Short tap -> toggle fill
+              // 짧은 탭 -> 채우기/비우기 토글
               const cell = touchStartCell.current;
-              if (cell) toggleCell(cell.y, cell.x, false);
+              if (cell && !isLongPress.current)
+                toggleCell(cell.y, cell.x, false);
             }
-            setDragMode(null);
             isLongPress.current = false;
             touchStartCell.current = null;
           }}
