@@ -1,8 +1,9 @@
 import type { MetadataRoute } from 'next';
 import { posts } from '#site/content';
+import { SITE_URL } from './lib/constants';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://colonni.xyz';
+  const baseUrl = SITE_URL;
 
   const staticPages: MetadataRoute.Sitemap = [
     {

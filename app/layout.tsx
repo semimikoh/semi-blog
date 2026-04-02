@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
-import Header from './layout/header';
-import Footer from './layout/footer';
+import { Header } from './layout/header';
+import { Footer } from './layout/footer';
 import { Analytics } from '@vercel/analytics/next';
+import { SITE_URL } from './lib/constants';
 import './style/globals.css';
 
 const pretendard = localFont({
@@ -11,7 +12,7 @@ const pretendard = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://colonni.xyz'),
+  metadataBase: new URL(SITE_URL),
   title: "colonni's blog",
   description: "colonni's blog",
   verification: {

@@ -3,6 +3,7 @@ import { posts } from '#site/content';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MDXContent } from '@/app/components/mdx-content';
+import { SITE_URL } from '@/app/lib/constants';
 import '@/app/style/prose.css';
 
 const PLAYGROUND_LINKS: Record<string, { label: string; href: string }[]> = {
@@ -32,7 +33,7 @@ export async function generateMetadata({
 
   const title = `${post.title} | colonni's blog`;
   const description = post.description;
-  const url = `https://colonni.xyz/posts/${post.slug}`;
+  const url = `${SITE_URL}/posts/${post.slug}`;
 
   return {
     title,
