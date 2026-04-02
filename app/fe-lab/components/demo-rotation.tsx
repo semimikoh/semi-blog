@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useCanvas } from './use-canvas';
 import { CopyBlock } from './copy-block';
 import { boundingSize, recoverDimensions, findVertices } from '../lib/math';
@@ -8,17 +8,6 @@ import { COMBINED_CODE } from '../lib/snippet';
 
 const COLORS = ['#ef4444', '#22c55e', '#3b82f6', '#a855f7'];
 const LABELS = ['TL', 'TR', 'BR', 'BL'];
-const BOUNDING_KEYS = [
-  'x',
-  'y',
-  'width',
-  'height',
-  'top',
-  'right',
-  'bottom',
-  'left',
-] as const;
-
 type DragMode = null | 'rotate' | { type: 'vertex'; index: number };
 
 function getCanvasPos(
@@ -136,39 +125,18 @@ export function DemoRotation() {
   );
 
   const { canvasRef } = useCanvas(draw);
-  const { W, H } = boundingSize(w, h, angle);
-  const recovered = recoverDimensions(W, H, angle);
+
+  const { W, H } = useMemo(() => boundingSize(w, h, angle), [w, h, angle]);
+  const recovered = useMemo(
+    () => recoverDimensions(W, H, angle),
+    [W, H, angle],
+  );
   const isDegenerate = isNaN(recovered.w);
-  const verts = findVertices(0, 0, w, h, angle);
-  const recoveredVerts = isDegenerate
-    ? []
-    : findVertices(0, 0, recovered.w, recovered.h, angle);
-
-  // getBoundingClientRect 시뮬레이션 (원점 중심 기준)
-  const bounding = {
-    x: -W / 2,
-    y: -H / 2,
-    width: W,
-    height: H,
-    top: -H / 2,
-    right: W / 2,
-    bottom: H / 2,
-    left: -W / 2,
-  };
-
-  // 역산 값으로 계산한 동일 정보
-  const recoveredBounding = isDegenerate
-    ? null
-    : {
-        x: bounding.x,
-        y: bounding.y,
-        width: recovered.w,
-        height: recovered.h,
-        top: bounding.top,
-        right: bounding.right,
-        bottom: bounding.bottom,
-        left: bounding.left,
-      };
+  const recoveredVerts = useMemo(
+    () =>
+      isDegenerate ? [] : findVertices(0, 0, recovered.w, recovered.h, angle),
+    [isDegenerate, recovered.w, recovered.h, angle],
+  );
 
   const handleStart = useCallback(
     (
@@ -210,7 +178,6 @@ export function DemoRotation() {
       if (!canvas) return;
       const pos = getCanvasPos(canvas, e);
       const { x: cx, y: cy } = canvasCenter.current;
-      const scale = scaleRef.current;
 
       if (dragMode.current === 'rotate') {
         // 마우스 → 중심 각도 계산
@@ -253,6 +220,8 @@ export function DemoRotation() {
       <div className="relative">
         <canvas
           ref={canvasRef}
+          role="img"
+          aria-label="DOM 회전 역산 인터랙티브 데모. 드래그로 회전하고 꼭짓점을 드래그하여 크기를 조절할 수 있습니다."
           className="block h-[250px] w-full max-w-full rounded-lg border-none bg-background sm:h-[300px]"
           style={{ cursor: 'crosshair', touchAction: 'none' }}
           onMouseDown={handleStart}
@@ -262,7 +231,9 @@ export function DemoRotation() {
           onTouchStart={handleStart}
           onTouchMove={handleMove}
           onTouchEnd={handleEnd}
-        />
+        >
+          DOM 회전 역산 시각화
+        </canvas>
         <p className="absolute bottom-2 left-2 text-[12px] text-foreground/30">
           클릭해서 마우스를 움직이면 회전 가능합니다
         </p>
@@ -270,10 +241,7 @@ export function DemoRotation() {
 
       <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <p
-            className="mb-1 text-[14px] font-bold"
-            style={{ color: '#f59e0b' }}
-          >
+          <p className="mb-1 text-[14px] font-bold text-amber">
             getBoundingClientRect()
           </p>
           <pre className="rounded-lg bg-foreground/5 p-3 text-[13px] leading-relaxed">

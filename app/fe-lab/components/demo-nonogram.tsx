@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, Fragment } from 'react';
+import { useState, useCallback, useRef, memo, Fragment } from 'react';
 
 const SIZE = 30;
 
@@ -1137,6 +1137,63 @@ const maxColHintLen = Math.max(...colHints.map((h) => h.length));
 
 type CellState = 0 | 1 | 2; // 0=empty, 1=filled, 2=marked-X
 
+const NonogramCell = memo(function NonogramCell({
+  y,
+  x,
+  state,
+  rowSolved,
+  gridVal,
+  color,
+  solved,
+  cellPx,
+}: {
+  y: number;
+  x: number;
+  state: CellState;
+  rowSolved: boolean;
+  gridVal: 0 | 1;
+  color: string;
+  solved: boolean;
+  cellPx: number;
+}) {
+  let bg = 'var(--background)';
+  if (rowSolved && gridVal === 1 && color) {
+    bg = color;
+  } else if (state === 1) {
+    bg = 'var(--foreground)';
+  }
+
+  return (
+    <div
+      data-cell={`${y},${x}`}
+      style={{
+        gridColumn: x + 2,
+        gridRow: y + maxColHintLen + 1,
+        width: cellPx,
+        height: cellPx,
+        background: bg,
+        borderRight:
+          (x + 1) % 5 === 0 && x < SIZE - 1
+            ? '1px solid var(--border)'
+            : '1px solid var(--card)',
+        borderBottom:
+          (y + 1) % 5 === 0 && y < SIZE - 1
+            ? '1px solid var(--border)'
+            : '1px solid var(--card)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: solved ? 'default' : 'pointer',
+        fontSize: 9,
+        color: 'var(--muted)',
+        transition: rowSolved ? 'background 0.3s' : undefined,
+      }}
+    >
+      {state === 2 && !solved ? '✕' : ''}
+    </div>
+  );
+});
+
 export function DemoNonogram() {
   const [cells, setCells] = useState<CellState[][]>(() =>
     Array.from({ length: SIZE }, () => Array(SIZE).fill(0) as CellState[]),
@@ -1237,7 +1294,6 @@ export function DemoNonogram() {
     [],
   );
 
-  // Cell size for responsive layout
   const CELL_PX = 16;
   const HINT_COL_W = maxRowHintLen * 18;
 
@@ -1425,48 +1481,19 @@ export function DemoNonogram() {
                 </div>
 
                 {/* Grid cells */}
-                {Array.from({ length: SIZE }, (_, x) => {
-                  const state = cells[y][x];
-                  const rowSolved = solvedRows.has(y);
-
-                  let bg = 'var(--background)';
-                  if (rowSolved && GRID[y][x] === 1 && COLORS[y][x]) {
-                    bg = COLORS[y][x];
-                  } else if (state === 1) {
-                    bg = 'var(--foreground)';
-                  }
-
-                  return (
-                    <div
-                      key={`c-${y}-${x}`}
-                      data-cell={`${y},${x}`}
-                      style={{
-                        gridColumn: x + 2,
-                        gridRow: y + maxColHintLen + 1,
-                        width: CELL_PX,
-                        height: CELL_PX,
-                        background: bg,
-                        borderRight:
-                          (x + 1) % 5 === 0 && x < SIZE - 1
-                            ? '1px solid var(--border)'
-                            : '1px solid var(--card)',
-                        borderBottom:
-                          (y + 1) % 5 === 0 && y < SIZE - 1
-                            ? '1px solid var(--border)'
-                            : '1px solid var(--card)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: solved ? 'default' : 'pointer',
-                        fontSize: 9,
-                        color: 'var(--muted)',
-                        transition: rowSolved ? 'background 0.3s' : undefined,
-                      }}
-                    >
-                      {state === 2 && !solved ? '✕' : ''}
-                    </div>
-                  );
-                })}
+                {Array.from({ length: SIZE }, (_, x) => (
+                  <NonogramCell
+                    key={`c-${y}-${x}`}
+                    y={y}
+                    x={x}
+                    state={cells[y][x]}
+                    rowSolved={solvedRows.has(y)}
+                    gridVal={GRID[y][x]}
+                    color={COLORS[y][x]}
+                    solved={solved}
+                    cellPx={CELL_PX}
+                  />
+                ))}
               </Fragment>
             );
           })}
