@@ -194,12 +194,29 @@ export function WalkingDog() {
 
   useEffect(() => {
     let animId: number;
+    let isVisible = true;
+
     const loop = () => {
-      draw();
+      if (isVisible) draw();
       animId = requestAnimationFrame(loop);
     };
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+      },
+      { threshold: 0 },
+    );
+
+    const canvas = canvasRef.current;
+    if (canvas) observer.observe(canvas);
+
     loop();
-    return () => cancelAnimationFrame(animId);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      observer.disconnect();
+    };
   }, [draw]);
 
   // 키보드 조작
@@ -239,11 +256,15 @@ export function WalkingDog() {
   return (
     <canvas
       ref={canvasRef}
+      role="img"
+      aria-label="산책하는 강아지 애니메이션. 클릭하거나 화살표 키로 강아지를 이동할 수 있습니다."
       className="block h-[120px] w-full max-w-full rounded-lg border-none sm:h-[150px]"
       style={{ touchAction: 'none', cursor: 'pointer' }}
       onClick={handleTap}
       onTouchStart={handleTap}
-    />
+    >
+      산책하는 강아지 애니메이션
+    </canvas>
   );
 }
 
