@@ -149,28 +149,37 @@ export function DemoLineBreak() {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const startAnimation = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) cancelAnimationFrame(timerRef.current);
     setAnimStep(0);
     setIsPlaying(true);
     let step = 0;
-    timerRef.current = window.setInterval(() => {
-      step++;
-      setAnimStep(step);
-      if (step >= 30) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        setIsPlaying(false);
+    let lastTime = performance.now();
+    const STEP_INTERVAL = 500;
+
+    const tick = (now: number) => {
+      if (now - lastTime >= STEP_INTERVAL) {
+        step++;
+        setAnimStep(step);
+        lastTime = now;
+        if (step >= 30) {
+          setIsPlaying(false);
+          timerRef.current = null;
+          return;
+        }
       }
-    }, 500);
+      timerRef.current = requestAnimationFrame(tick);
+    };
+    timerRef.current = requestAnimationFrame(tick);
   };
 
   const pauseAnimation = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) cancelAnimationFrame(timerRef.current);
     timerRef.current = null;
     setIsPlaying(false);
   };
 
   const stopAnimation = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) cancelAnimationFrame(timerRef.current);
     timerRef.current = null;
     setIsPlaying(false);
     setAnimStep(-1);
@@ -228,6 +237,8 @@ export function DemoLineBreak() {
       </p>
       <canvas
         ref={canvasRef}
+        role="img"
+        aria-label="텍스트 줄바꿈 탐색 알고리즘 시각화. 삼각형 핸들을 드래그하여 너비를 조절할 수 있습니다."
         className="block h-[310px] w-full max-w-full rounded-lg border-none bg-background sm:h-[280px]"
         style={{ touchAction: 'none' }}
         onMouseDown={handleStart}
@@ -248,7 +259,9 @@ export function DemoLineBreak() {
         onTouchStart={handleStart}
         onTouchMove={handleMove}
         onTouchEnd={handleEnd}
-      />
+      >
+        텍스트 줄바꿈 탐색 알고리즘 시각화
+      </canvas>
 
       <div className="flex flex-wrap gap-2">
         <button
@@ -325,10 +338,7 @@ export function DemoLineBreak() {
           </tr>
           <tr>
             <td className="px-5 py-1.5 text-center text-muted">탐색 수</td>
-            <td
-              className="px-5 py-1.5 text-center font-semibold"
-              style={{ color: '#f59e0b' }}
-            >
+            <td className="px-5 py-1.5 text-center font-semibold text-amber">
               {counts.linear}
             </td>
             <td className="px-5 py-1.5 text-center font-semibold text-primary">
