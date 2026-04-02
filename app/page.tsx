@@ -1,5 +1,5 @@
 import { posts } from '#site/content';
-import PostCard from './components/post-card';
+import { PostCard } from './components/post-card';
 import { WalkingDog } from './components/walking-dog';
 
 export default function Home() {

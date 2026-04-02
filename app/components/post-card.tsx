@@ -9,7 +9,7 @@ interface PostCardProps {
   thumbnail?: string;
 }
 
-export default function PostCard({
+export function PostCard({
   title,
   date,
   slug,

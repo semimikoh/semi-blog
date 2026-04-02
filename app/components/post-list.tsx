@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import PostCard from './post-card';
+import { PostCard } from './post-card';
 
 interface Post {
   title: string;
@@ -17,7 +17,7 @@ interface PostListProps {
   allTags: string[];
 }
 
-export default function PostList({ posts, allTags }: PostListProps) {
+export function PostList({ posts, allTags }: PostListProps) {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   const filteredPosts = selectedTag

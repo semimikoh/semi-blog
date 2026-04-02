@@ -14,7 +14,7 @@ const navItems: { href: string; label: string; disabled?: boolean }[] = [
   // { href: '/guestbook', label: 'GUEST' },
 ];
 
-export default function Header() {
+export function Header() {
   const pathname = usePathname();
   const [dark, setDark] = useState(false);
 

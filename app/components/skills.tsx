@@ -7,7 +7,7 @@ interface SkillsProps {
   스킬: 스킬그룹[];
 }
 
-export default function Skills({ 스킬 }: SkillsProps) {
+export function Skills({ 스킬 }: SkillsProps) {
   return (
     <div className="flex flex-col gap-3">
       {스킬.map((group) => (

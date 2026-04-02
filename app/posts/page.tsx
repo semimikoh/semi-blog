@@ -1,5 +1,5 @@
 import { posts } from '#site/content';
-import PostList from '../components/post-list';
+import { PostList } from '../components/post-list';
 
 export default function PostsPage() {
   const sortedPosts = posts.sort(

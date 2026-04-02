@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import WorkExperience from '../components/work-experience';
-import Skills from '../components/skills';
+import { WorkExperience } from '../components/work-experience';
+import { Skills } from '../components/skills';
 import resumeData from '@/content/resume/data.json';
 import skillsData from '@/content/resume/skills.json';
 

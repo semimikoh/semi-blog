@@ -19,12 +19,7 @@ export interface 경력Props {
   프로젝트: 프로젝트[];
 }
 
-export default function WorkExperience({
-  회사,
-  팀,
-  기간,
-  프로젝트,
-}: 경력Props) {
+export function WorkExperience({ 회사, 팀, 기간, 프로젝트 }: 경력Props) {
   return (
     <div className="flex flex-col gap-4">
       <div>
