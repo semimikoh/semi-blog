@@ -13,6 +13,7 @@
   --purple: #8b5cf6;
   --gray: #9ca3af;
   --accent: var(--gray);
+  --amber: #f59e0b;
   --highlight: #4ade804d;
 }
 
@@ -27,6 +28,7 @@
   --color-accent: var(--accent);
   --color-green: var(--green);
   --color-purple: var(--purple);
+  --color-amber: var(--amber);
   --color-highlight: var(--highlight);
 }
 
