@@ -4,18 +4,20 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Sun, Moon } from 'lucide-react';
+import { useLocale } from '../lib/i18n/context';
 
-const navItems: { href: string; label: string; disabled?: boolean }[] = [
-  { href: '/', label: 'HOME' },
-  { href: '/posts', label: 'POSTS' },
-  { href: '/about', label: 'ABOUT' },
-  { href: '/fe-lab', label: 'PLAYGROUND' },
-  { href: '/project', label: 'PROJECT', disabled: true },
-  // { href: '/guestbook', label: 'GUEST' },
+const navItems: { path: string; label: string; disabled?: boolean }[] = [
+  { path: '', label: 'HOME' },
+  { path: '/posts', label: 'POSTS' },
+  { path: '/about', label: 'ABOUT' },
+  { path: '/fe-lab', label: 'PLAYGROUND' },
+  { path: '/project', label: 'PROJECT', disabled: true },
+  // { path: '/guestbook', label: 'GUEST' },
 ];
 
 export function Header() {
   const pathname = usePathname();
+  const locale = useLocale();
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -47,14 +49,15 @@ export function Header() {
     <header className="sticky top-0 z-50 mt-6 flex h-14 items-center justify-between bg-background">
       <nav className="flex items-center space-x-3 text-sm font-medium tracking-[-0.075em] sm:space-x-4 sm:text-[18px]">
         {navItems.map((item) => {
+          const href = `/${locale}${item.path}`;
           const isActive =
-            item.href === '/'
-              ? pathname === '/'
-              : pathname.startsWith(item.href);
+            item.path === ''
+              ? pathname === `/${locale}` || pathname === `/${locale}/`
+              : pathname.startsWith(`/${locale}${item.path}`);
           if (item.disabled) {
             return (
               <span
-                key={item.href}
+                key={item.path}
                 className="cursor-not-allowed py-3 font-extrabold text-muted/15 line-through"
               >
                 {item.label}
@@ -63,8 +66,8 @@ export function Header() {
           }
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={item.path}
+              href={href}
               className={`py-3 font-extrabold transition-colors ${
                 isActive ? 'text-accent' : 'text-foreground'
               }`}
@@ -77,7 +80,7 @@ export function Header() {
       <button
         onClick={toggleTheme}
         className="text-foreground/60 transition-colors hover:text-foreground"
-        aria-label="테마 변경"
+        aria-label="Toggle theme"
       >
         {dark ? <Moon size={20} /> : <Sun size={20} />}
       </button>

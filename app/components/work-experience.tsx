@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useLocale } from '../lib/i18n/context';
 
 interface 관련글 {
   href: string;
@@ -20,6 +23,8 @@ export interface 경력Props {
 }
 
 export function WorkExperience({ 회사, 팀, 기간, 프로젝트 }: 경력Props) {
+  const locale = useLocale();
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -57,7 +62,7 @@ export function WorkExperience({ 회사, 팀, 기간, 프로젝트 }: 경력Prop
                 {project.관련글.map((post) => (
                   <li key={post.href}>
                     <Link
-                      href={post.href}
+                      href={`/${locale}${post.href}`}
                       className="text-blue-500 underline underline-offset-4"
                     >
                       {post.제목}

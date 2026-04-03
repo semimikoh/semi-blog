@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
-import { Header } from './layout/header';
-import { Footer } from './layout/footer';
 import { Analytics } from '@vercel/analytics/next';
 import { SITE_URL } from './lib/constants';
 import './style/globals.css';
@@ -40,11 +38,7 @@ export default function RootLayout({
   return (
     <html lang="ko" className={pretendard.className}>
       <body className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 antialiased sm:px-2">
-        <Header />
-        <main className="mx-auto min-h-[60vh] w-full max-w-2xl flex-1 py-4">
-          {children}
-        </main>
-        <Footer />
+        {children}
         <Analytics />
       </body>
     </html>
