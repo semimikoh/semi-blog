@@ -1,0 +1,322 @@
+---
+title: How Browsers Handle Text Input
+description: Browser events (Keyboard/Composition/BeforeInput), IME, and iOS Safari differences
+date: 2026-03-19
+slug: browser-text-input-handling
+tags: [Editor, JavaScript, Browser]
+---
+
+> Browser events (Keyboard/Composition/BeforeInput), IME, and iOS Safari differences
+
+Text input is not simply a matter of appending characters to a string. The moment a single character appears on screen, IME composition, Selection/Range, DOM updates, focus, and layout (line-breaking/reflow) are all intertwined behind the scenes.
+
+That's why most text input bugs don't stem from "string handling" itself, but from:
+- What to delegate to the browser (IME/selection)
+- What JS should be responsible for
+- When to synchronize
+
+getting divided incorrectly.
+
+In this post, I'll walk through the browser event flow for text input and explore contentEditable-based architectures.
+
+---
+
+## Understanding Browser Text Input Events
+
+Several input events interact in complex ways inside the browser before text actually appears on screen. They can be broadly divided into three categories.
+
+### Keyboard / Composition / Input
+
+**Keyboard Events** (`keydown`, `keyup`) respond to physical key presses. They tell you which key was pressed, but not what character will actually be input. They often fail to accurately reflect the state of Korean characters mid-composition.
+
+**Composition Events** (`compositionstart`, `compositionupdate`, `compositionend`) indicate the IME composition state. They fire for languages like Korean, Japanese, and Chinese where multiple keystrokes combine into a single character.
+
+**Input Events** (`beforeinput`, `input`) fire when the DOM value actually changes. Since `inputType` tells you "what kind of edit happened," these are the most important events in modern editor development.
+
+## Event Order Differences: English vs. Korean Input
+
+(The exact events and their order may vary depending on the browser/OS/IME combination.)
+
+| Type | Event Order |
+|------|-------------|
+| English | `keydown` -> `beforeinput` -> `input` -> `keyup` |
+| Korean | `keydown` -> `compositionstart` -> `compositionupdate` -> `input` -> `keyup` |
+
+For English, "key press -> text confirmed" finishes quickly, but Korean has a composition state in between.
+
+During IME input, `composition*` events fire during the composition phase, and `beforeinput`/`input` may interleave between them.
+
+However, depending on the environment, `beforeinput` may be omitted during composition, or `inputType` may differ.
+
+
+### What isComposing Means
+
+`isComposing` is a flag that indicates whether the current character is mid-composition (e.g., the process of turning a consonant into a full syllable). It exists on both KeyboardEvent and InputEvent, and helps prevent bugs where pressing Enter duplicates a character that's still being composed.
+
+```javascript
+inputElement.addEventListener('input', (e) => {
+  if (e.isComposing) return; // Skip logic while composing
+  console.log('Input finalized:', e.target.value);
+});
+```
+
+However, there can be timing differences across platforms and browsers, so in practice it's more reliable to manage a separate flag via `compositionstart`/`end` and use `isComposing` as a supplementary indicator.
+
+> Note: `isComposing` is commonly used in Enter key handling. Enter during composition may be a "confirm" action, so it's used to prevent premature submit/send.
+> However, since `isComposing` reliability varies by environment, it's safer to also maintain a `compositionstart`/`compositionend` flag as backup.
+
+```javascript
+let composing = false;
+element.addEventListener('compositionstart', () => (composing = true));
+element.addEventListener('compositionend', () => (composing = false));
+
+element.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.isComposing || composing)) {
+    e.preventDefault();
+  }
+});
+```
+
+
+### Event Logging Code
+
+When input issues occur, examining the raw events helps identify the cause quickly.
+
+```javascript
+[
+  'keydown', 'keyup',
+  'beforeinput', 'input',
+  'compositionstart', 'compositionupdate', 'compositionend',
+].forEach((type) => {
+  element.addEventListener(type, (e) => {
+    console.log(type, {
+      key: e.key,
+      data: e.data,
+      inputType: e.inputType,
+      isComposing: e.isComposing,
+    });
+  });
+});
+```
+
+---
+
+## contentEditable-Based Text Editing Architecture
+
+### What contentEditable Delegates to the Browser
+
+Setting <code>contentEditable=&quot;true&quot;</code> makes the browser responsible for text editing in that element. The browser handles:
+
+- Key press -> character insertion
+- IME composition (Korean, Japanese, etc.)
+- Cursor/Selection management
+- Basic editing commands (copy, paste, undo/redo, etc.)
+
+This is territory where browsers and operating systems have already handled countless edge cases, so it's generally more stable to leverage their built-in capabilities.
+
+
+### JS Handling vs. Browser Delegation Tradeoffs
+
+| | JS Handles Directly | Delegate to Browser |
+|---|---|---|
+| **Pros** | Full control | Automatic IME/multilingual support |
+| **Cons** | Must implement IME, edge cases explode | Fine-grained control is difficult |
+
+If JS handles input directly, you take on composition/candidate conversion (Japanese/Chinese), RTL languages, and selection behavior. In practice, delegating to the browser is often more advantageous from a maintenance perspective.
+
+### contentEditable Data Flow: DOM -> Model
+
+With contentEditable, **the browser modifies the HTML first**, and JS then reads the result in the `input` event to synchronize the model.
+
+```
+User input -> Browser modifies HTML -> input event -> JS updates model
+```
+
+Going against this order causes problems.
+
+---
+
+## Approaches to Text Input Handling
+
+### Directly Modifying the DOM in keydown/compositionupdate
+
+```javascript
+// ❌ Rewriting the DOM during composition is very likely to break things
+element.addEventListener('compositionupdate', (e) => {
+  element.textContent = transform(element.textContent);
+});
+```
+
+During Korean input, the browser and OS IME target a specific DOM node (text node) as the **"input target"** and continue composition on it. If JS modifies or deletes that node, problems arise.
+
+- **Scenario**: User is typing a Korean syllable mid-composition
+- **JS interference**: At the `compositionupdate` point, reads the text and wraps it in a `<span>` tag
+- **Result**: The IME thinks its managed text node has disappeared. Composition is forcibly terminated, the cursor jumps to the beginning of the editor, or the last character gets duplicated
+
+Touching the DOM/selection during composition can cause the browser to conclude that the editing location has been lost.
+
+
+### Recommended Approach: beforeinput/input + inputType Routing
+
+```javascript
+element.addEventListener('beforeinput', (e) => {
+  switch (e.inputType) {
+    case 'insertText':
+      // Regular text insertion
+      break;
+    case 'insertCompositionText':
+      // (Varies by environment) IME composition -- let the browser handle it
+      break;
+    case 'deleteContentBackward':
+      // Backspace
+      break;
+    case 'insertFromPaste':
+      // Paste
+      break;
+  }
+});
+```
+
+`beforeinput`/`input` represent actual editing actions, and `inputType` lets you classify the intent. JS can focus on "synchronization" based on the edits the browser performed, while minimizing risky DOM/selection changes during composition.
+
+- **beforeinput**: Determines user intent (text insertion, deletion, etc.). You can `preventDefault()` and render the DOM yourself, but this is risky during Korean composition.
+- **input**: Fires right after the browser has reflected the character in the DOM. Read the updated DOM state and only update the internal data model.
+
+---
+
+## Locking the Editing Location During Composition
+
+For IME composition to work correctly, **the editing location must not change during composition**.
+
+### Triggers That Break Composition
+| Trigger | Description |
+|---------|-------------|
+| DOM reset/replacement | `innerText = ''`, node replacement |
+| Selection change | `selection.collapse()`, etc. |
+| Focus change | `focus()`, `blur()` |
+| Layout reflow | Line-breaking/page-splitting moves the input node |
+| Style/gesture effects | Changes to `user-select` policy, etc. |
+
+
+### Deferring Layout Changes During Composition
+
+When the editor needs to reflow text (e.g., page splitting), if that reflow involves a selection change, composition breaks. That's why **a policy of deferring layout changes during composition** is necessary.
+
+
+```javascript
+let pendingLayoutUpdate = null;
+let isComposing = false;
+
+element.addEventListener('compositionstart', () => {
+  isComposing = true;
+});
+
+element.addEventListener('compositionend', () => {
+  isComposing = false;
+  if (pendingLayoutUpdate) {
+    pendingLayoutUpdate();
+    pendingLayoutUpdate = null;
+  }
+});
+
+function updateLayout() {
+  if (isComposing) {
+    pendingLayoutUpdate = () => actualLayoutUpdate();
+    return;
+  }
+  actualLayoutUpdate();
+}
+```
+
+
+---
+
+## iOS vs. macOS
+
+Even within Safari, iOS and macOS sometimes fire input events differently.
+
+### iOS Relies Heavily on beforeinput/input
+
+On macOS, the `keydown` -> `compositionupdate` -> `input` sequence is predictable.
+But on iOS, input comes primarily through `inputType`-based events, so implementations that rely solely on `keydown` quickly hit their limits.
+
+### Characteristics of Korean Input on iOS
+
+When typing Korean on iOS:
+
+- `compositionstart`/`update`/`end` **often do not fire**
+- Input is handled through `insertText` + `deleteContentBackward` combinations
+- `isComposing` **may always return false**
+
+```
+'ㄱ' input: insertText 'ㄱ'
+'가' completed: deleteContentBackward + insertText '가'
+'간' completed: deleteContentBackward + insertText '간'
+```
+
+
+### Why Code That Worked on macOS Breaks on iOS
+
+```javascript
+// Works on macOS
+element.addEventListener('keyup', (e) => {
+  if (!e.isComposing) {
+    clearBuffer(); // iOS: runs every time -> breaks composition
+  }
+});
+```
+
+On iOS, `isComposing` may come back differently than expected (e.g., always false), causing **the buffer to reset on every keystroke**.
+
+### Tips for iOS Compatibility
+
+- Use compositionstart/end-based flags + logging instead of relying on `isComposing`
+- Avoid `innerText` resets/node replacements; defer them until after `compositionend` when possible
+- If `user-select: none` is set, `caretRangeFromPoint` won't work -- check parent styles
+
+---
+
+## Best Practices for Text Input Handling
+
+### Flag Management
+
+```javascript
+const state = {
+  isComposing: false,
+  lastInputType: null,
+};
+
+element.addEventListener('compositionstart', () => {
+  state.isComposing = true;
+});
+
+element.addEventListener('compositionend', () => {
+  state.isComposing = false;
+});
+
+element.addEventListener('beforeinput', (e) => {
+  state.lastInputType = e.inputType;
+});
+```
+
+### Rules for Safe Input Handling
+
+1. Do not change Selection during composition
+2. Do not clean up/reset the DOM during composition (defer until after composition ends if needed)
+3. Use inputType-based routing in beforeinput/input to separate insertion/deletion/paste
+
+### Troubleshooting
+
+1. Use event logging to verify the actual order and any missing events
+2. Trace back any code that touches DOM/selection/focus during composition
+3. Test iOS on a real device (simulators may behave differently)
+
+
+---
+
+## Conclusion
+
+> **"Let the browser handle what it does best; JS should intervene minimally."**
+
+IME and selection are what browsers and operating systems handle best. When JS tries to implement input directly, platform and language edge cases multiply endlessly.
+The most stable strategy is to let the browser handle input, have JS quietly synchronize via beforeinput/input, and defer DOM/selection/layout changes as much as possible during composition.
