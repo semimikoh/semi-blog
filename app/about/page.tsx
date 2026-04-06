@@ -54,21 +54,30 @@ export default function AboutPage() {
               <span className="w-[90px] shrink-0 font-semibold">
                 {item.이름}
               </span>
-              <div className="flex flex-col gap-0.5 text-foreground/70">
-                {item.기여.map((c) => (
-                  <span key={c.링크}>
-                    {c.설명}
-                    {c.링크 && (
-                      <Link
-                        href={c.링크}
-                        target="_blank"
-                        className="ml-1 text-[13px] text-blue-500 transition-opacity hover:opacity-60"
-                      >
-                        (#{c.링크.split('/').pop()})
-                      </Link>
-                    )}
-                  </span>
-                ))}
+              <div className="flex flex-col gap-1.5 text-foreground/70">
+                {item.기여.map((c) => {
+                  const statusIcon =
+                    c.상태 === 'merged'
+                      ? '✅'
+                      : c.상태 === 'closed'
+                        ? '❌'
+                        : '🔄';
+                  return (
+                    <span key={c.링크}>
+                      <span className="mr-1">{statusIcon}</span>
+                      {c.설명}
+                      {c.링크 && (
+                        <Link
+                          href={c.링크}
+                          target="_blank"
+                          className="ml-1 text-[13px] text-blue-500 transition-opacity hover:opacity-60"
+                        >
+                          (#{c.링크.split('/').pop()})
+                        </Link>
+                      )}
+                    </span>
+                  );
+                })}
               </div>
             </li>
           ))}

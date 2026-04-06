@@ -35,12 +35,19 @@
       "이름": "Node.js",
       "기여": [
         {
-          "설명": "Buffer.byteLength Base64 benchmark 입력 처리 오류 수정",
+          "상태": "merged",
+          "설명": "Buffer.byteLength 벤치마크에서 base64 입력이 유효하지 않은 문자로 구성돼 실제 디코딩 경로를 측정하지 못하던 문제를, 유효한 base64 문자열로 교체해 벤치마크가 실제 성능을 반영하도록 수정했습니다.",
           "링크": "https://github.com/nodejs/node/pull/60841"
         },
         {
-          "설명": "Worker env 옵션 미제공 시 NODE_OPTIONS 파싱 누락 수정",
+          "상태": "open",
+          "설명": "Worker 스레드 생성 시 env 옵션을 명시하지 않으면 NODE_OPTIONS가 파싱되지 않아 메인 스레드와 동작이 달라지던 문제를, env 미지정 케이스에서도 NODE_OPTIONS를 파싱하도록 변경해 워커와 메인 스레드 간 옵션 처리 일관성을 회복했습니다.",
           "링크": "https://github.com/nodejs/node/pull/62306"
+        },
+        {
+          "상태": "closed",
+          "설명": "assert.strict에 partialDeepEqual을 추가해 부분 일치 검증을 표준 API로 제공하고자 제안했으나, 메인테이너 피드백을 수용해 자체 종결했습니다.",
+          "링크": "https://github.com/nodejs/node/pull/62332"
         }
       ]
     },
@@ -48,8 +55,39 @@
       "이름": "Mantine",
       "기여": [
         {
-          "설명": "Badge 컴포넌트 radius 적용 시 circle 렌더링 개선",
-          "링크": "https://github.com/mantinedev/mantine/issues/8465"
+          "상태": "merged",
+          "설명": "Badge 컴포넌트에서 circle prop을 지정해도 defaultProps.radius가 우선 적용돼 원형으로 렌더링되지 않던 문제를, prop 우선순위 로직을 수정해 circle이 의도대로 동작하도록 개선했습니다.",
+          "링크": "https://github.com/mantinedev/mantine/pull/8466"
+        },
+        {
+          "상태": "merged",
+          "설명": "MCP 서버의 stdio transport가 MCP 명세를 일부 준수하지 않아 호환 클라이언트와 통신이 깨지던 문제를, 스펙에 맞게 메시지 처리 흐름을 수정해 표준 준수성을 확보했습니다.",
+          "링크": "https://github.com/mantinedev/mantine/pull/8792"
+        },
+        {
+          "상태": "open",
+          "설명": "clearFieldError, resetField, clearFieldDirty의 path 인자가 타입 추론 대상에서 누락돼 IDE 자동완성이 동작하지 않던 문제를, 제네릭 타입 시그니처를 보강해 폼 필드 경로에 대한 TS 자동완성을 제공하도록 개선했습니다.",
+          "링크": "https://github.com/mantinedev/mantine/pull/8810"
+        }
+      ]
+    },
+    {
+      "이름": "Tiptap",
+      "기여": [
+        {
+          "상태": "open",
+          "설명": "색상이 적용된 텍스트에서 IME 조합 중 마크 경계로 인해 캐럿이 의도치 않게 점프하던 문제를, 조합 중에는 마크 분리를 지연시키도록 수정해 한글/일본어 등 IME 입력 UX를 개선했습니다.",
+          "링크": "https://github.com/ueberdosis/tiptap/pull/7626"
+        }
+      ]
+    },
+    {
+      "이름": "Vite",
+      "기여": [
+        {
+          "상태": "open",
+          "설명": "?raw import에서 원본 문자열을 그대로 반환함에도 fallback sourcemap이 생성돼 불필요한 오버헤드가 발생하던 문제를, ?raw 쿼리에 대해서는 sourcemap 생성을 건너뛰도록 수정해 로딩 비용을 줄였습니다.",
+          "링크": "https://github.com/vitejs/vite/pull/22148"
         }
       ]
     },
@@ -57,7 +95,8 @@
       "이름": "Slate.js",
       "기여": [
         {
-          "설명": "slate-dom peer dependency 불일치 regression 오류 해결",
+          "상태": "merged",
+          "설명": "slate-react의 slate-dom peer dependency가 구버전에 고정돼 최신 버전 사용 시 peer 경고가 발생하던 문제를, peer dependency를 0.119.0으로 갱신해 버전 정합성을 회복했습니다.",
           "링크": "https://github.com/ianstormtaylor/slate/pull/5976"
         }
       ]
