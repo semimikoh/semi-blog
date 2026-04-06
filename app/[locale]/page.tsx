@@ -13,6 +13,7 @@ export default async function Home({ params }: HomeProps) {
   const dict = await getDictionary(locale as Locale);
 
   const recentPosts = posts
+    .filter((post) => post.locale === locale)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 3);
 

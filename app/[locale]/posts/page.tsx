@@ -1,8 +1,16 @@
 import { posts } from '#site/content';
 import { PostList } from '../../components/post-list';
 
-export default function PostsPage() {
-  const sortedPosts = posts.sort(
+interface PostsPageProps {
+  params: Promise<{ locale: string }>;
+}
+
+export default async function PostsPage({ params }: PostsPageProps) {
+  const { locale } = await params;
+
+  const localePosts = posts.filter((post) => post.locale === locale);
+
+  const sortedPosts = localePosts.sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
 
@@ -18,7 +26,7 @@ export default function PostsPage() {
     '인프라',
   ];
   const allTags = TAG_ORDER.filter((tag) =>
-    posts.some((post) => post.tags.includes(tag)),
+    localePosts.some((post) => post.tags.includes(tag)),
   );
 
   return (

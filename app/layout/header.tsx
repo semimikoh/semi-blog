@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sun, Moon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Sun, Moon, Globe } from 'lucide-react';
 import { useLocale } from '../lib/i18n/context';
 
 const navItems: { path: string; label: string; disabled?: boolean }[] = [
@@ -17,8 +18,15 @@ const navItems: { path: string; label: string; disabled?: boolean }[] = [
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const locale = useLocale();
   const [dark, setDark] = useState(false);
+
+  const toggleLocale = () => {
+    const nextLocale = locale === 'ko' ? 'en' : 'ko';
+    const newPath = pathname.replace(`/${locale}`, `/${nextLocale}`);
+    router.push(newPath);
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem('theme');
@@ -77,13 +85,23 @@ export function Header() {
           );
         })}
       </nav>
-      <button
-        onClick={toggleTheme}
-        className="text-foreground/60 transition-colors hover:text-foreground"
-        aria-label="Toggle theme"
-      >
-        {dark ? <Moon size={20} /> : <Sun size={20} />}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={toggleLocale}
+          className="flex items-center gap-1 text-[13px] font-semibold text-foreground/60 transition-colors hover:text-foreground"
+          aria-label="Toggle language"
+        >
+          <Globe size={16} />
+          {locale === 'ko' ? 'EN' : 'KO'}
+        </button>
+        <button
+          onClick={toggleTheme}
+          className="text-foreground/60 transition-colors hover:text-foreground"
+          aria-label="Toggle theme"
+        >
+          {dark ? <Moon size={20} /> : <Sun size={20} />}
+        </button>
+      </div>
     </header>
   );
 }
