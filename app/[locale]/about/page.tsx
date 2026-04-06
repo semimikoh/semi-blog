@@ -1,17 +1,31 @@
 import Link from 'next/link';
 import { WorkExperience } from '../../components/work-experience';
 import { Skills } from '../../components/skills';
-import resumeData from '@/content/resume/data.json';
-import skillsData from '@/content/resume/skills.json';
+import resumeDataKo from '@/content/resume/data.json';
+import skillsDataKo from '@/content/resume/skills.json';
+import resumeDataEn from '@/content/resume/data.en.json';
+import skillsDataEn from '@/content/resume/skills.en.json';
+import { getDictionary } from '../../lib/i18n/get-dictionary';
+import type { Locale } from '../../lib/i18n/config';
 
-export default function AboutPage() {
+export default async function AboutPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const dict = await getDictionary(locale as Locale);
+  const resumeData = locale === 'en' ? resumeDataEn : resumeDataKo;
+  const skillsData = locale === 'en' ? skillsDataEn : skillsDataKo;
+  const t = dict.about;
+
   return (
     <div className="flex flex-col gap-6 pt-3 pb-16">
       {/* Header */}
       <header>
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold">고세미</h1>
-          <p className="text-sm text-muted">Frontend Engineer</p>
+          <h1 className="text-2xl font-bold">{t.name}</h1>
+          <p className="text-sm text-muted">{t.role}</p>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted">semi8848@daum.net</p>
             <div className="flex items-center gap-4 text-sm">
@@ -39,7 +53,7 @@ export default function AboutPage() {
 
       {/* Work Experience */}
       <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold">Work Experience</h2>
+        <h2 className="text-lg font-bold">{t.workExperience}</h2>
         {resumeData.경력.map((exp) => (
           <WorkExperience key={exp.회사} {...exp} />
         ))}
@@ -47,7 +61,7 @@ export default function AboutPage() {
 
       {/* Open Source */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-bold">Open Source</h2>
+        <h2 className="text-lg font-bold">{t.openSource}</h2>
         <ul className="flex flex-col gap-3 text-sm">
           {skillsData.오픈소스.map((item) => (
             <li key={item.이름} className="flex items-baseline gap-3">
@@ -77,13 +91,13 @@ export default function AboutPage() {
 
       {/* Skills */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-bold">Skills</h2>
+        <h2 className="text-lg font-bold">{t.skills}</h2>
         <Skills 스킬={skillsData.스킬} />
       </section>
 
       {/* Education */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-bold">Education</h2>
+        <h2 className="text-lg font-bold">{t.education}</h2>
         <div className="flex flex-col gap-2 text-sm">
           {resumeData.학력.map((item) => (
             <div key={item.학교}>
