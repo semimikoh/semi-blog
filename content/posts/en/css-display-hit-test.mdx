@@ -1,0 +1,123 @@
+---
+title: How a Single CSS display Property Broke Hit-Testing
+description: How caretRangeFromPoint returned the wrong node in nested DOM structures, and the fix
+date: 2026-03-30
+slug: css-display-hit-test
+tags: [CSS, Browser, JavaScript]
+---
+
+In web development, there are times when you need to know exactly **which DOM node the user clicked on** at a given coordinate.
+This comes up in editors, custom drag-and-drop, coordinate-based interactions, and many other scenarios.
+
+Browsers support coordinate-based node lookup through APIs like `caretRangeFromPoint` and `elementFromPoint`. They usually work well, but when **the DOM is deeply nested**, a single `display` property on a parent element can completely change the result.
+
+You click on an inner node, but the parent node is returned instead. **The cause was a single line of CSS.**
+
+---
+
+## How Browser Hit-Testing Works
+
+Let's use `caretRangeFromPoint(x, y)` as an example. Internally, this API goes through two stages.
+
+### Stage 1 -- hitTest
+
+At the given (x, y) coordinates, it **finds the closest node.** At this stage, things mostly work as expected.
+
+### Stage 2 -- Normalization
+
+Based on the hitTest result, it looks for an inline element inside the **block container** that the node belongs to, and determines the final result.
+
+The key is this **normalization stage**. The browser determines "which block does this node belong to," then picks the appropriate inline element from within that block to return. This is exactly where the problem occurred.
+
+---
+
+## The Problem -- display Property Changes the Hit-Test Result
+
+Consider the following nested structure:
+
+```html
+<div class="container">
+  <div class="wrapper">
+    <span>Hello World</span>
+  </div>
+</div>
+```
+
+### When wrapper has `display: block`
+
+```html
+<div class="container">
+  <div class="wrapper" style="display: block;">
+    <span>Hello World</span>
+  </div>
+</div>
+```
+
+```
+hitTest result: node inside <span>
+Normalization: inline element inside wrapper (block) -> returns <span>
+```
+
+The browser recognizes `wrapper` as a block container and correctly returns the inner `<span>`.
+
+### When wrapper has `display: inline-block`
+
+```html
+<div class="container">
+  <div class="wrapper" style="display: inline-block;">
+    <span>Hello World</span>
+  </div>
+</div>
+```
+
+```
+hitTest result: node inside <span>
+Normalization: inline element inside container (block) -> returns wrapper
+```
+
+When `wrapper` becomes `inline-block`, **the normalization baseline changes.** `container` becomes the block container, and when looking for an inline element inside it, `wrapper` itself is inline-level, so `wrapper` is returned. **It never reaches the inner `<span>`.**
+
+Just changing one line of CSS completely altered the API's return value.
+
+---
+
+## The Fix -- Restoring block While Maintaining Layout with position
+
+So why was `inline-block` used in the first place? Usually for **positioning purposes**. It's common to use `inline-block` to place elements side by side or at specific positions.
+
+The solution was to **use `position` for layout instead of touching `display`**.
+
+```css
+/* Before -- hit-test broken */
+.wrapper {
+  display: inline-block;
+}
+
+/* After -- hit-test works correctly */
+.wrapper {
+  /* display: block (default) */
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+
+.container {
+  position: relative; /* Reference point for absolute */
+}
+```
+
+- `wrapper` keeps `block` (the default), so normalization correctly returns the inner node.
+- `position: absolute` with `left`/`top` handles the desired positioning.
+- The parent `container` gets `position: relative` to serve as the reference point for `absolute`.
+
+The layout remained the same while hit-testing now worked correctly.
+
+---
+
+## Summary
+
+A single CSS property can affect not just layout but also the browser's internal behavior, changing the results of APIs.
+
+- Coordinate-based APIs like `caretRangeFromPoint` and `elementFromPoint` internally perform **normalization based on block/inline structure**.
+- Changing `display` doesn't just change the layout -- **it changes the baseline for normalization itself**.
+- Using `position: absolute` instead of `inline-block` lets you maintain `block` while achieving the same layout.

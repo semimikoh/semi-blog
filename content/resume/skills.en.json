@@ -1,0 +1,66 @@
+{
+  "스킬": [
+    {
+      "카테고리": "Framework / Library",
+      "목록": [
+        "React",
+        "Next.js",
+        "React Router",
+        "TanStack Query",
+        "TanStack Table",
+        "React Hook Form",
+        "Zod",
+        "Tailwind CSS"
+      ]
+    },
+    {
+      "카테고리": "Language",
+      "목록": ["TypeScript", "JavaScript"]
+    },
+    {
+      "카테고리": "State Management",
+      "목록": ["Jotai", "MobX"]
+    },
+    {
+      "카테고리": "Testing",
+      "목록": ["Jest", "Cucumber", "Puppeteer"]
+    },
+    {
+      "카테고리": "Legacy",
+      "목록": ["JSP", "AngularJS"]
+    }
+  ],
+  "오픈소스": [
+    {
+      "이름": "Node.js",
+      "기여": [
+        {
+          "설명": "Fixed input handling bug in Buffer.byteLength Base64 benchmark",
+          "링크": "https://github.com/nodejs/node/pull/60841"
+        },
+        {
+          "설명": "Fixed missing NODE_OPTIONS parsing when Worker env option is not provided",
+          "링크": "https://github.com/nodejs/node/pull/62306"
+        }
+      ]
+    },
+    {
+      "이름": "Mantine",
+      "기여": [
+        {
+          "설명": "Improved circle rendering when applying radius to the Badge component",
+          "링크": "https://github.com/mantinedev/mantine/issues/8465"
+        }
+      ]
+    },
+    {
+      "이름": "Slate.js",
+      "기여": [
+        {
+          "설명": "Resolved regression caused by slate-dom peer dependency mismatch",
+          "링크": "https://github.com/ianstormtaylor/slate/pull/5976"
+        }
+      ]
+    }
+  ]
+}

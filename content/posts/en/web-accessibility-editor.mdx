@@ -1,0 +1,351 @@
+---
+title: Web Accessibility, and Applying It in an Editor
+description: From general web accessibility fundamentals to the unique accessibility challenges in editors
+date: 2026-03-24
+slug: web-accessibility-editor
+tags: [Editor, Accessibility, HTML]
+---
+
+> From general web accessibility fundamentals to the unique accessibility challenges in editors
+
+In a recent interview, I was asked about the difference between an `a` tag and `onclick`.
+At the time, I could only think of answers from an event handling or DOM perspective. But after the interview, I reconsidered and realized the question could also be viewed from a **web accessibility standpoint** -- not just "what's technically different" but **what difference it makes from the user's perspective**.
+
+For example, if the goal is navigation, `a href` is more natural than `div onclick`.
+
+- `<a href="...">` is recognized as a **link** by browsers and assistive technologies.
+- It can be reached via Tab and activated with Enter.
+- It comes with built-in browser link behaviors -- opening in a new tab, copying the link, integration with browsing history, and so on.
+- In contrast, `div onclick` can handle clicks, but it doesn't automatically inherit these built-in behaviors and semantics.
+
+There are more examples like this:
+
+- Using `div onClick` instead of `button`
+- Building input UI with only `contenteditable` instead of `input`
+- Constructing entire pages with nothing but `div` instead of semantic tags
+
+I frequently encountered these issues while developing a web-based editor.
+Editors in particular involve far more interaction than typical pages, rely heavily on keyboard usage, and need to communicate the current position and state much more precisely. That's why **accessibility in a general web context** and **accessibility in an editor** have a somewhat different character.
+
+In this post, I'll first briefly cover general web accessibility, then describe what was different about **web accessibility in the editor** from my experience.
+
+---
+
+## Web Accessibility Fundamentals
+
+Before getting into editors, let's review the basic elements commonly encountered in general web accessibility.
+
+### Semantic HTML Solves More Than You'd Think
+
+When people think about web accessibility, ARIA often comes to mind first, but in practice, **using the correct HTML elements** should come first.
+
+For example:
+
+- For navigation: `a`
+- For triggering actions: `button`
+- For input: `input`, `textarea`
+- For lists: `ul`, `ol`, `li`
+- For headings: `h1`~`h6`
+
+Using the right tags helps browsers and screen readers better understand each element's role.
+Keyboard focus, default behaviors, and accessibility tree exposure mostly come along for free.
+
+```html
+<a href="/docs">Go to documentation</a>
+<button type="button">Save</button>
+<textarea aria-label="Document content input"></textarea>
+```
+
+On the other hand, trying to do everything with a `div` means you can attach a click handler, but the semantic meaning doesn't come automatically.
+
+```html
+<div onclick="save()">Save</div>
+```
+
+In this case, it may look like a button visually, but from the perspective of assistive technology, it's just a `div`.
+The developer then has to manually handle `role`, `tabindex`, keyboard events, and state communication.
+
+---
+
+### Landmarks and Structure Transform the Navigation Experience
+
+Screen reader users don't "scan the page with their eyes" -- they navigate by structure.
+That's why dividing the page into major regions matters.
+
+```html
+<header>Header</header>
+<nav aria-label="Main menu">...</nav>
+<main>Main content</main>
+<footer>Footer</footer>
+```
+
+In cases like these, you don't actually need to add `role="banner"`, `role="navigation"`, or `role="main"` explicitly.
+The HTML itself already carries semantic meaning.
+In fact, it's more natural to **prefer native semantics and use ARIA only to fill in the gaps**.
+
+---
+
+### It Must Be Usable with Keyboard Alone
+
+One of the most frequently discussed aspects of web accessibility is keyboard accessibility.
+This isn't simply about "whether there are keyboard shortcuts," but rather about **whether users can reach and execute functionality without a mouse**.
+
+At a minimum, the following should be met:
+
+- Tab navigation must work for focus movement.
+- Enter or Space should trigger appropriate actions.
+- The current focus position must be visually apparent.
+
+For example, a button provides this behavior by default:
+
+```html
+<button type="button">Close</button>
+```
+
+But using a `div` as a button lacks these defaults:
+
+```html
+<div
+  role="button"
+  tabindex="0"
+  onclick="closeDialog()"
+  onkeydown="if(event.key === 'Enter' || event.key === ' ') closeDialog()"
+>
+  Close
+</div>
+```
+
+You can supplement it this way, but you're essentially reimplementing everything a button does natively.
+That's why web accessibility often felt less like **"building more"** and more like **"forcing less"**.
+
+---
+
+### Screen Readers Don't Automatically Know About Every Change
+
+In modern dynamic web pages, changes that are visually obvious often go completely unnoticed by screen reader users.
+
+For example:
+
+- When a save completes
+- When filter results change
+- When a modal opens
+- When an error message appears
+
+In these cases, you can use attributes like `aria-live` to announce changes.
+
+```html
+<div aria-live="polite" aria-atomic="true">Save complete.</div>
+```
+
+- `aria-live="polite"`: Announces at an appropriate time without interrupting current reading.
+- `aria-live="assertive"`: Interrupts current reading and announces immediately.
+- `aria-atomic="true"`: Useful when you want the entire content read, not just the changed portion.
+
+Also, buttons that only have icons need their names provided separately.
+
+```html
+<button aria-label="Close">x</button>
+```
+
+---
+
+### Automated Testing Tools Are a Starting Point, Not the Answer
+
+When checking accessibility, these tools are commonly used:
+
+- Lighthouse
+- WAVE
+- axe DevTools
+
+They're helpful for quickly finding missing attributes and obvious issues.
+However, real accessibility doesn't end with automated testing.
+In particular, **focus movement**, **keyboard flow**, **what the screen reader actually reads**, and **dynamic state changes** are easily missed without hands-on testing.
+
+---
+
+## How Accessibility Differs in an Editor
+
+Everything above applies to general web accessibility too.
+But editors add another layer of complexity.
+
+That's because an editor isn't simply a page that displays information -- it's an interaction-driven UI where users **write**, **select**, **navigate**, and **edit**.
+
+In the environment I worked in, the considerations differed from typical pages.
+
+### An Editor Must Communicate "Where You Are" More Effectively
+
+On a regular page, users can infer their current location from the page title or section structure.
+But editors are different.
+
+Users need to know:
+
+- Which paragraph they're in
+- What text is currently selected
+- What formatting is applied
+- Whether they're inside a table
+- Whether focus is on the ribbon/toolbar or the document body
+
+In other words, an editor needs to convey not just "this button saves" but
+**what the current document context is**.
+
+For example, a live region like this might be needed:
+
+```html
+<div aria-live="polite" aria-atomic="true" class="sr-only">
+  Currently in paragraph 3.
+</div>
+```
+
+Or when formatting changes:
+
+```html
+<div aria-live="polite" class="sr-only">Bold has been applied.</div>
+```
+
+---
+
+### Focus Management Becomes Far More Critical
+
+In general web pages, things mostly work as long as the Tab order isn't seriously broken.
+But editors have many places focus can go -- the document body, toolbar, dialogs, side panels, context menus.
+
+Simply "Tab moves to the next element" isn't enough.
+
+What was needed:
+
+- Trapping focus inside a dialog when it opens
+- Restoring focus to the previous position when a dialog closes
+- Including dynamically created buttons and panels in the focus order
+- Enabling natural transitions between the toolbar and editing area
+
+For example, modals require a focus trap:
+
+```html
+<div role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+  <h2 id="dialog-title">Font Settings</h2>
+  <button>OK</button>
+  <button>Cancel</button>
+</div>
+```
+
+The important thing here isn't just adding `role="dialog"`,
+but actually preventing Tab from escaping outside, and returning focus to where the user was working when the dialog closes.
+
+---
+
+### Keyboard Shortcuts Become a Core Interaction Method, Not a Convenience
+
+On typical pages, keyboard accessibility often ends at Tab, Enter, and Space.
+But in an editor, the keyboard isn't just an auxiliary input -- it's the **primary input method**.
+
+For example:
+
+- `Ctrl+B`, `Ctrl+I`, `Ctrl+U`: Bold, italic, underline
+- `Ctrl+L`, `Ctrl+E`, `Ctrl+R`, `Ctrl+J`: Alignment
+- `Ctrl+Home`, `Ctrl+End`: Jump to document start/end
+- `Shift + Arrow keys`: Extend selection
+- Cell navigation inside tables
+- Navigation within the toolbar/ribbon
+
+For example, the bold shortcut handler might look like this:
+
+```ts
+function onKeyDown(event: KeyboardEvent) {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
+    event.preventDefault();
+    toggleBold();
+    announce('Bold has been applied.');
+  }
+}
+```
+
+But at a production level, there's much more to consider:
+
+- Mac/Windows key differences
+- Shortcut combination conflicts
+- IME conflicts
+- Read-only mode
+- Whether a selection currently exists
+
+In other words, keyboard shortcuts in an editor were a **fundamental interface governing both accessibility and productivity**, not just a convenience feature.
+
+---
+
+### The Ribbon, Toolbar, and Panels Are All Interaction Zones
+
+In an editor, the document body isn't the only important area.
+The ribbon UI -- packed with formatting buttons, tabs, groups, dropdowns, and toggles -- also needs thoughtful accessibility design.
+
+In these areas, the following mattered:
+
+- Conveying that it's a toolbar
+- Communicating tab selection state
+- Communicating toggle button on/off state
+- Enabling orderly keyboard navigation
+
+For example, a structure like this is possible:
+
+```html
+<div role="toolbar" aria-label="Formatting toolbar">
+  <button aria-pressed="true">Bold</button>
+  <button aria-pressed="false">Italic</button>
+  <button aria-pressed="false">Underline</button>
+</div>
+```
+
+For tab UI, the current selection state needs to be communicated:
+
+```html
+<div role="tablist" aria-label="Ribbon tabs">
+  <button role="tab" aria-selected="true">Home</button>
+  <button role="tab" aria-selected="false">Insert</button>
+  <button role="tab" aria-selected="false">View</button>
+</div>
+```
+
+---
+
+### Not Everything Visible Should Be Read Aloud
+
+Editors contain many elements that are only visually meaningful.
+
+For example:
+
+- Rulers
+- Decorative guides
+- Print preview overlays
+- Visual alignment aids
+- Bubbles displayed on screen whose actual content lives elsewhere
+
+Exposing these elements to the accessibility tree actually creates noise.
+So sometimes, **hiding what should be hidden** was more important than "making things visible."
+
+```html
+<div aria-hidden="true" class="ruler"></div>
+```
+
+Accessibility isn't about making everything readable --
+it's also about **keeping only the truly necessary information and cleaning up the rest**.
+
+---
+
+## Conclusion
+
+When I heard the interview question about the difference between an `a` tag and `onclick`, I initially thought only about the technical differences.
+But on reflection, the question was really about **the meaning browsers understand**, **the experience users actually get**, and **the information assistive technologies can interpret**.
+
+And what I learned from building an editor was similar.
+
+In general web development, good use of semantic tags, keyboard access, and screen reader support solves most problems.
+But editors need to go further.
+
+- You need to convey the current editing context
+- You need to manage complex focus flows
+- You need to provide diverse shortcuts and states consistently
+- You need to distinguish between visual elements and semantically meaningful elements
+
+Ultimately, editor accessibility sits on the same continuum as general web accessibility,
+but it's a bit more interaction-centric, a bit more state-centric, and requires a bit more finesse.
+
+Going through this exercise also gave me a chance to revisit my earlier implementations from a different angle.
+Going forward, I want to look beyond "does it work?" and also consider **who might use it and how**.

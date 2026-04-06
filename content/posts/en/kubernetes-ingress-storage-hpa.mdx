@@ -1,0 +1,252 @@
+---
+title: 'How Kubernetes Handles External Requests, Storage, and Autoscaling'
+description: An overview of essential Kubernetes resources for production, including Ingress, Gateway API, PV/PVC, and HPA
+date: 2026-03-23
+slug: kubernetes-ingress-storage-hpa
+tags: [Cloud, Docker, Kubernetes, Infrastructure]
+---
+
+## How Kubernetes Handles External Requests, Storage, and Autoscaling
+
+In the previous post, we covered the differences between cloud services, Docker, and Kubernetes, along with the basic architecture of Kubernetes.
+Once you understand clusters, Pods, Deployments, and Services, you start to get a sense of how applications are run.
+
+But from an operational perspective, that's only the beginning.
+
+- Where should external user requests be received?
+- How do you persist data when Pods are recreated?
+- How do you scale the number of Pods as traffic increases?
+
+Kubernetes addresses each of these concerns through dedicated resources.
+In this post, we'll focus on **how external requests are handled**, **how storage is managed**, and **how autoscaling works**.
+
+### Why Services Alone Aren't Enough
+
+A Service provides a stable endpoint for accessing Pods.
+Since a Pod's IP can change when it's recreated, having clients connect directly to Pods is unreliable. Services exist to solve this problem.
+
+However, Services alone don't cover everything.
+By default, a Service is **a resource for accessing Pods from within the cluster**.
+
+In other words, finding Pods reliably inside the cluster and routing external user requests into the cluster are two different problems.
+
+This is where resources like Ingress and Gateway API come in.
+
+### How Do External Requests Reach the Cluster?
+
+To actually serve an application, external user requests need to reach the cluster.
+For example, when a browser sends a request to a specific domain or path, there needs to be a rule that determines which Service should handle it.
+
+The two primary approaches for this are **Ingress** and **Gateway API**.
+
+#### Ingress
+
+Ingress is a resource that defines rules for routing HTTP(S) requests to Services.
+For example, you might have rules like:
+
+- Requests to `api.example.com` go to the API Service
+- Requests to `/web` go to the Web Service
+- Requests to `/admin` go to the Admin Service
+
+However, simply defining an Ingress resource doesn't automatically handle traffic.
+To make Ingress rules actually work, you need an **Ingress Controller**.
+
+In other words, Ingress is the **rule declaration**, and the Ingress Controller is the **execution engine that enforces those rules**.
+
+### How Is Gateway API Different?
+
+Gateway API is a newer standard designed to address the limitations of Ingress.
+
+While Ingress is relatively simple and widely used, it has several limitations:
+
+- It's primarily designed around HTTP(S).
+- Fine-grained configuration often depends on controller-specific annotations.
+- It's difficult to clearly separate the roles of infrastructure administrators and application developers.
+
+Gateway API improves on these issues by providing a **role-separated architecture**.
+
+Three resources commonly appear:
+
+- **GatewayClass**
+- **Gateway**
+- **HTTPRoute**
+
+#### GatewayClass
+
+GatewayClass is a resource that defines **which Gateway Controller to use**.
+It specifies the implementation responsible for handling traffic.
+
+#### Gateway
+
+Gateway defines **which ports and protocols to accept requests on**.
+For example, you can configure it to accept requests on HTTP port 80.
+
+#### HTTPRoute
+
+HTTPRoute defines **which domain and path combinations should route to which Service**.
+
+In summary, Gateway API divides responsibilities like this:
+
+- GatewayClass: Which controller to use
+- Gateway: How to receive requests
+- HTTPRoute: Where to send received requests
+
+This structure allows infrastructure configuration and application routing rules to be managed more independently.
+
+### What Happens to Data When a Pod Is Recreated?
+
+In Kubernetes, Pods are not permanent instances.
+They can be recreated at any time due to node failures, rescheduling, updates, and other reasons.
+
+This means **data stored only inside a Pod can be lost**.
+
+For example, if an application stores uploaded files, logs, caches, or state data only in the Pod's internal filesystem, that data may disappear when the Pod is replaced.
+
+Therefore, when data needs to persist, you must use storage external to the Pod.
+
+### How Do StorageClass, PV, and PVC Relate to Each Other?
+
+Three concepts frequently come up when dealing with storage in Kubernetes:
+
+- **StorageClass**
+- **PersistentVolume (PV)**
+- **PersistentVolumeClaim (PVC)**
+
+Each serves a different role.
+
+#### StorageClass
+
+StorageClass is a **policy** that defines how storage should be provisioned.
+For example, it specifies what type of disk to use and when volumes should be bound.
+
+In essence, StorageClass is about "what kind of storage to provide and under what rules."
+
+#### PersistentVolume (PV)
+
+A PV is an actual allocated piece of storage.
+From the cluster's perspective, it's a concrete storage resource that can be used.
+
+#### PersistentVolumeClaim (PVC)
+
+A PVC is how an application requests storage.
+When a Pod says "I need this much storage," Kubernetes matches it with an appropriate PV.
+
+To summarize:
+
+- StorageClass: The policy for how storage is provisioned
+- PV: The actual storage
+- PVC: The storage request
+
+### Why Request Storage Through a PVC?
+
+The reason Pods don't specify storage directly but instead use PVCs is to decouple applications from the underlying storage implementation.
+
+From an application's perspective, "how much storage is needed" and "how to access it" matter more than "which specific disk product to use."
+PVCs let you express these requirements declaratively.
+
+For example, a Pod only needs to specify:
+
+- Storage size
+- Access mode
+- Which StorageClass to use
+
+Kubernetes handles the actual binding process from there.
+
+### What Does accessModes Mean?
+
+A commonly seen field when defining a PVC is `accessModes`.
+It indicates how the storage can be accessed.
+
+The main modes are:
+
+- **ReadWriteOnce (RWO)**: Read/write access from a single node.
+- **ReadOnlyMany (ROX)**: Read-only access from multiple nodes.
+- **ReadWriteMany (RWX)**: Read/write access from multiple nodes.
+
+In development environments or with local storage, `ReadWriteOnce` is the most common choice.
+This is especially true because local disk-based storage tends to be tied to a specific node, making simultaneous read/write access from multiple nodes difficult.
+
+### Why Do StorageClass Options Matter?
+
+StorageClass has several options related to storage behavior.
+Two of the most frequently encountered are `reclaimPolicy` and `volumeBindingMode`.
+
+#### reclaimPolicy
+
+`reclaimPolicy` determines what happens to the PV when the PVC is deleted.
+
+- **Delete**: The PV is deleted along with the PVC.
+- **Retain**: The PV is preserved even after the PVC is deleted.
+
+This is essentially a policy for deciding whether to clean up storage automatically or keep the data around.
+
+#### volumeBindingMode
+
+`volumeBindingMode` determines when the PV is bound.
+
+For example, `WaitForFirstConsumer` delays binding until a Pod using the PVC is actually scheduled.
+This approach is especially useful with local storage that's tied to specific nodes.
+
+The reason is that if storage is locked in before knowing which node the Pod will land on, there could be a mismatch with the actual scheduling decision.
+
+### What Does HPA Do?
+
+When running an application, a fixed number of Pods isn't always sufficient.
+It's more efficient to increase Pods when traffic spikes and reduce them when it's quiet.
+
+The Kubernetes resource responsible for this is the **HPA (Horizontal Pod Autoscaler)**.
+
+HPA targets resources like Deployments and automatically scales the number of Pods up or down.
+In other words, it automates horizontal scaling of your application.
+
+For example, you could set a policy like:
+
+- Minimum of 2 Pods
+- Maximum of 6 Pods
+- Increase Pod count when CPU utilization exceeds a certain threshold
+
+### What Does HPA Base Its Decisions On?
+
+HPA operates based on metrics.
+It typically uses resource metrics like CPU utilization or memory usage as its criteria.
+
+For example, when using CPU utilization, it looks at each Pod's usage to determine whether the current Pod count is sufficient.
+
+The important point here is that HPA doesn't simply check whether "CPU is high." Instead, it calculates **how much is being used relative to a baseline**.
+
+### Why Are Requests Necessary?
+
+When HPA operates based on CPU utilization, the **requests** value configured on the Pod is critical.
+
+For example, if a Pod has a CPU request of `100m` and its actual usage is `50m`, the utilization is 50%.
+In other words, HPA's `averageUtilization` is calculated **as a percentage of the requests value**.
+
+Without requests, percentage-based utilization calculations become ambiguous and may not work as expected.
+
+To summarize:
+
+- **requests**: The minimum resource amount used as a scheduling baseline
+- **HPA averageUtilization**: Utilization measured against requests
+
+Therefore, to use HPA effectively, you need to consider Pod resource configuration as well.
+
+### Why Is metrics-server Necessary?
+
+For HPA to function, it needs to know the current CPU and memory usage of Pods.
+The most common component that provides this information is **metrics-server**.
+
+In other words, HPA doesn't measure metrics on its own; it receives data through a metrics collection tool within the cluster.
+
+In practice, commands like `kubectl top pods` only work when this metrics layer is in place.
+
+So before setting up HPA, you should first verify that your cluster is capable of collecting resource metrics.
+
+### Summary
+
+In Kubernetes, beyond just running applications, external requests, storage, and scaling strategies are each managed through dedicated resources.
+
+- External requests are handled through Ingress or Gateway API.
+- Storage is managed through StorageClass, PV, and PVC.
+- Autoscaling is handled through HPA.
+
+In other words, Kubernetes isn't just a tool for running containers -- it's an **operational platform that manages networking, storage, and scaling strategies as separate, well-defined resources**.

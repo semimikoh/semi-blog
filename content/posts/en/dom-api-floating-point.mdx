@@ -1,0 +1,160 @@
+---
+title: The Hidden Threshold in DOM API Coordinates
+description: "How floating-point boundary values in caretRangeFromPoint caused cursor positioning errors"
+date: 2026-03-18
+slug: dom-api-floating-point
+tags: [Editor, JavaScript, Browser]
+---
+
+> _Subtitle: The meaning of 0.99999999999994315..._
+
+
+## Introduction
+
+When developing an editor, you often encounter unexpected issues.
+
+In a previous post, I shared **an issue that arose while rendering the cursor manually**.
+Once the cursor is rendered, the next step is **positioning it accurately on the text**. In this post, I'll describe a peculiar browser issue I encountered during exactly that process.
+
+When implementing a custom cursor, the `caretRangeFromPoint` API is practically essential -- and that's where the problem originated. It's deeply related to floating-point arithmetic. (Though I should note that this issue no longer reproduces in current environments.)
+
+
+## The Situation: Intermittently Erratic Cursor Movement
+
+When a paragraph spanned two or more lines, clicking on the empty space after the last line caused the cursor to land in the wrong position.
+
+- **Expected behavior**: Cursor positioned at the end of the last line's text
+- **Actual behavior**: Cursor jumped to the **same x-coordinate on the line above**
+
+We were using the `caretRangeFromPoint` API to position the cursor.
+
+### What Is caretRangeFromPoint?
+
+`caretRangeFromPoint(x, y)`
+
+- Takes x, y coordinates and returns the closest text range
+- Note: `display: block` elements are ignored (presumably because they don't contain text directly)
+
+The most baffling aspect of this bug was that **it wasn't consistently reproducible**.
+It seemed intermittent at first, but on closer inspection, **it reproduced consistently at specific coordinates**.
+At positions where the bug occurred, it always produced the wrong result; at positions where it worked, it always worked correctly.
+
+
+### First Hypothesis: A Character Issue
+
+Since the bug only appeared when the last character was `a` but not `e` within the same width, I initially suspected **the character (glyph) itself** was the problem.
+But looking at the logs, the issue wasn't the shape of the character -- it was **the decimal pattern of the coordinate where that character ended**.
+
+### Second Hypothesis: A Page Width / Layout Issue
+
+Next, I suspected **page width (responsive layout, line-break points)** as the cause.
+When changing the page width, some widths triggered the issue frequently while others didn't.
+But even across different layouts, the problem consistently occurred only when **the boundary coordinate's decimal matched a specific pattern**.
+
+### It Was a Number (Decimal) Problem All Along
+
+Ultimately, the issue was neither the characters nor the layout -- it was **the coordinate values themselves**.
+
+When clicking empty space, we adjusted the coordinates using `getBoundingClientRect()` to get the **text bounding box**, then passed those corrected coordinates to `caretRangeFromPoint`.
+**The subtle fractional errors introduced during this correction** caused the API to fail to find the nearest text, selecting text from the line above instead.
+
+On a hunch, I tried **rounding** the values -- and the symptoms **disappeared**.
+
+But **rounding without justification** was not an acceptable solution. A text editor must accurately reflect even a **1-pixel difference** for the user.
+Rounding was used only for **temporary verification**, and I continued investigating the **root cause**.
+
+
+## The Real Cause: Finding the Threshold Value
+
+
+I began testing coordinate values one by one to reproduce the issue.
+
+```javascript
+// Strange pattern discovered
+caretRangeFromPoint(100.99999999999991); // ❌ Broken
+caretRangeFromPoint(100.99999999999998); // ✅ Works
+caretRangeFromPoint(100.99999999999993); // ❌ Broken
+caretRangeFromPoint(100.99999999999996); // ✅ Works
+caretRangeFromPoint(100.99999999999994); // ❌ Broken
+caretRangeFromPoint(100.99999999999995); // ✅ Works
+// Narrowing down the threshold -- fine-grained search in the 94 range
+
+caretRangeFromPoint(100.999999999999941); // ❌ Broken
+caretRangeFromPoint(100.999999999999948); // ✅ Works
+caretRangeFromPoint(100.999999999999943); // ❌ Broken
+caretRangeFromPoint(100.999999999999944); // ✅ Works
+// Narrowing down the threshold -- fine-grained search in the 943 range
+
+....
+```
+
+I spent hours changing coordinate values one by one, chasing down the cause of this issue.
+I adjusted click coordinates by 0.1, then 0.01, even down to 0.000001 increments, repeating the process dozens of times.
+Finally, I discovered that `caretRangeFromPoint` **consistently malfunctioned only at a specific numeric pattern**.
+
+For instance, when a value like `562.99999999999994315...` appeared,
+it behaved as though the coordinate hit a **boundary threshold**,
+and the API returned `null` instead of a valid text Range.
+
+- **Below this threshold** (smaller values): `caretRangeFromPoint` returned `null`
+- **Above this threshold** (larger values): it returned a valid `Range` normally
+
+In other words, the API couldn't handle decimal values that fell on this boundary,
+causing the cursor to jump to the line above or return an empty Range (`null`).
+
+What stood out was that the threshold wasn't **1** but rather a very long decimal (e.g., nnn.99999999999994315...).
+When the number stretched to that many decimal places, the API internally treated it as **a boundary threshold**.
+
+I arrived at the conclusion: "The browser internally uses decimal fractions like nnn.99999999999994315... as a boundary value when processing coordinates."
+
+### The Flow of the Problem
+
+1. **User clicks empty space** -> click coordinates (x, y) obtained
+
+2. **Coordinate correction** -> `getBoundingClientRect()` retrieves the text box's bounding values,
+   which are used to adjust the click coordinates
+   - At this point, values are typically reasonable decimals like `562.234893248`
+
+3. **Corrected value stored** -> the adjusted coordinate is stored in a variable (`adjustedX`)
+   - When reading or computing with this variable again,
+     JavaScript's **floating-point characteristics** can reveal
+     extended decimals like `562.2348932480000001` or `562.23489324899994315...`
+
+4. **API called** -> this extended value is passed to `caretRangeFromPoint(adjustedX, y)`
+
+5. **Malfunction occurs**
+   - When the coordinate hits a **boundary threshold**, the API fails to produce a proper Range
+   - Below the threshold, it returns `null` or the cursor jumps to the line above
+   - Above the threshold, it returns a Range normally
+
+## The Solution
+
+The fix turned out to be surprisingly simple.
+
+1. **Rounding**
+   As before, rounding the coordinate to a reasonable number of decimal places
+   eliminates the long fractional tail, allowing `caretRangeFromPoint` to work correctly.
+
+2. **Shifting the coordinate by the threshold value (epsilon)**
+   Taking advantage of the fact that a specific decimal value acts as a boundary,
+   shift the coordinate inward from the element's edge by epsilon before calling the API.
+
+I ultimately chose **option 2**.
+
+```javascript
+ adjustedX -= Math.ceil(0.99999999999994315);
+```
+
+While rounding alone solved the problem, "which decimal place to round at" lacked clear justification and could potentially cause side effects in other scenarios.
+In contrast, shifting inward by epsilon **exposes the root cause and addresses it directly**, making it the more rational approach.
+
+## Conclusion
+
+This issue was a case where **DOM APIs** and **floating-point arithmetic** were intricately intertwined. Searching Google for keywords like `caretRangeFromPoint bug` or `caretRangeFromPoint pointer-events none` turned up no relevant results, so I had to track down the cause myself.
+
+During debugging, I tested numbers with over 17 decimal places one by one. In that endless sea of `0.999999...`, the moment I finally spotted `0.99999999999994` -- where a **digit other than 9 (the 4)** appeared -- I felt the thrill of finding the key clue. It wasn't just a meaningless string of 0.9999s; the **change in significant digits was the actual cause of the issue**.
+
+Of course, I could have simply applied rounding to paper over the problem quickly. But if I had, I never would have understood the true cause, and I'd have been left with lingering uncertainty.
+
+That said, this issue no longer reproduces in the current environment (OS: macOS, Browser: Chrome). The developer tools no longer display numbers beyond 17 decimal places, likely due to how IEEE 754 floating-point representation works.
+The exact conditions under which this occurred in the production environment remain unknown, but if a similar DOM API issue arises in the future, there's now good reason to **suspect subtle numeric precision errors** once again.

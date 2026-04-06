@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useDictionary, useLocale } from '../lib/i18n/context';
 
 interface 관련글 {
   href: string;
@@ -20,6 +23,9 @@ export interface 경력Props {
 }
 
 export function WorkExperience({ 회사, 팀, 기간, 프로젝트 }: 경력Props) {
+  const locale = useLocale();
+  const dict = useDictionary();
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -42,7 +48,7 @@ export function WorkExperience({ 회사, 팀, 기간, 프로젝트 }: 경력Prop
           ))}
           {project.담당업무 && project.담당업무.length > 0 && (
             <>
-              <p className="mt-2 text-sm font-semibold">담당업무</p>
+              <p className="mt-2 text-sm font-semibold">{dict.about.duties}</p>
               <ul className="flex flex-col gap-1.5 text-sm text-foreground/70">
                 {project.담당업무.map((duty, i) => (
                   <li key={i}>{duty}</li>
@@ -52,12 +58,14 @@ export function WorkExperience({ 회사, 팀, 기간, 프로젝트 }: 경력Prop
           )}
           {project.관련글 && project.관련글.length > 0 && (
             <>
-              <p className="mt-2 text-sm font-semibold">관련 글</p>
+              <p className="mt-2 text-sm font-semibold">
+                {dict.about.relatedPosts}
+              </p>
               <ul className="flex flex-col gap-1.5 text-sm">
                 {project.관련글.map((post) => (
                   <li key={post.href}>
                     <Link
-                      href={post.href}
+                      href={`/${locale}${post.href}`}
                       className="text-blue-500 underline underline-offset-4"
                     >
                       {post.제목}

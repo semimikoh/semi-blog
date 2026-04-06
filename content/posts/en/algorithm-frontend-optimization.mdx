@@ -1,0 +1,168 @@
+---
+title: Optimizing Frontend Performance with Algorithms
+description: Using binary search (parametric search) to optimize line-breaking in an editor that handles its own layout
+date: 2026-03-15
+slug: algorithm-frontend-optimization
+tags: [Editor, Algorithm, JavaScript]
+---
+
+## Why We Had to Handle Line-Breaking Manually
+
+As I mentioned in a previous post, I was developing a text editor. At the company, we handled the editor's layout ourselves, using canvas APIs for the rendering.
+
+Since we were managing the layout directly, line-breaking also had to be handled manually. Text editors are particularly sensitive to user input and interactions (like style changes), so line breaks need to be recalculated immediately.
+
+In other words, every time text was rendered, we needed to measure the text width to determine where to break lines.
+
+In this post, I'd like to share how I applied algorithms to optimize the line-breaking logic in a frontend development context.
+
+---
+
+## Starting Simple
+_The linear search approach_
+
+**Measuring text width using the Canvas API**
+
+The canvas API we used was `canvas.measureText()`, which returns the width of a given text string.
+
+```javascript
+const metrics = ctx.measureText('Hello');
+console.log(metrics.width); // e.g., 72.5 (in pixels)
+```
+This API accurately calculates the pixel width that the text will occupy based on the currently configured font style.
+
+**Initial linear search approach:** At first, we **expanded the search range one character at a time** from the beginning of the input text, checking the width at each step.
+
+```javascript
+// Original linear search approach (pseudocode)
+function findLineBreakPoint(text, maxWidth) {
+  for (let i = 1; i <= text.length; i++) {
+    const partialText = text.substring(0, i);
+    const width = canvas.measureText(partialText).width;
+
+    if (width > maxWidth) {
+      return i - 1; // The previous index is the maximum point
+    }
+  }
+  return text.length;
+}
+```
+
+**User complaints started coming in:**
+
+- Noticeable lag for users typing long text
+- Stuttering when suddenly changing styles on long text
+- Ongoing performance issues related to long text
+
+**Analyzing the problem:**
+
+- Computation time increased linearly as text grew longer (O(n))
+- For 100 characters of text, up to 100 `measureText()` calls in the worst case
+- In a real-time editing environment, this calculation repeated with every keystroke
+
+**We hit the limits of linear search.** Especially with text spanning hundreds or thousands of characters, the performance degradation was clearly noticeable to users.
+
+---
+
+## The Performance Issue, and Parametric Search
+
+**Not binary search -- parametric search**
+
+At first, I naturally thought of using binary search. However, a standard binary search is designed to **find a specific value**, which didn't quite match my goal of **"finding the maximum amount of text that fits within a given width."** Similar, but subtly different.
+
+What I needed was **Parametric Search**.
+
+**Binary Search vs. Parametric Search**
+
+- **Binary search**: "Find value X in the array"
+- **Parametric search**: "Using binary search, find the maximum/minimum value that satisfies a condition"
+
+In my case, the goal was to find "the maximum text width that fits within a given width constraint."
+
+**The actual implementation:**
+
+```javascript
+function findLineBreakPoint(text, maxWidth) {
+  let left = 0;
+  let right = text.length;
+  let result = 0;
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+    const partialText = text.substring(0, mid);
+    const width = canvas.measureText(partialText).width;
+
+    if (width <= maxWidth) {
+      result = mid;  // Store the maximum value found so far
+      left = mid + 1;  // Try longer text
+    } else {
+      right = mid - 1;  // Try shorter text
+    }
+  }
+
+  return result;
+}
+```
+
+**Key logic explained:**
+
+1. **Calculate the midpoint**: Compute `mid` and measure the text width up to that point
+2. **Evaluate the condition**:
+    - If the width is within the allowed range -> search the right half (try longer text)
+    - If the width exceeds the limit -> search the left half (try shorter text)
+3. **Store the optimal value**: Continuously update the maximum value that satisfies the condition
+
+**Performance measurement:**
+
+- **Tool**: Browser DevTools Performance tab
+- **Test method**: Held down a key for 10 seconds to measure continuous text input
+- **Comparison**: Direct comparison between linear search and parametric search
+
+**Results:**
+
+- **Performance improvement**: 26.53ms -> 13.41ms **(50% improvement)**
+- **Time complexity**: Improved from O(n) to O(log n)
+- **Perceived effect**: The difference was especially dramatic with longer text
+- **User feedback**: Previous performance-related complaints were resolved
+
+---
+
+## Is Caching the Answer? Why Direct Computation Was Better
+
+You might wonder, **"Why not just cache the results?"** But unlike a **viewer** that displays the same text repeatedly, a **text editor** is an entirely different situation.
+
+**Cache conditions were too complex in a real-time editing environment:**
+
+1. **Too many variables**:
+    - Different font styles per character (bold, italic, size, etc.)
+    - Text rotation angles
+    - Letter spacing, line spacing settings
+
+2. **Complex cache key management**:
+    ```javascript
+    // This kind of complex cache key would have been needed
+    const cacheKey = `${text}_${fontSize}_${fontFamily}_${fontWeight}_${rotation}_${letterSpacing}_...`;
+    ```
+
+3. **Numerous invalidation triggers**:
+    - Every time the user modifies text
+    - Every time a style changes
+    - Every time the layout changes
+    - All related caches would need to be found and deleted
+
+4. **Memory overhead**:
+    - Storing countless combinations of text and style information
+    - Cache size limits and LRU management required
+    - Risk of memory leaks
+
+**Ultimately**, we concluded that **computing quickly at O(log n)** was more efficient than implementing and maintaining complex caching logic.
+
+---
+
+## The Moment Algorithms Mattered in Practice
+
+I realized that the idea "algorithms are only for coding interviews" was wrong.
+
+This was a **real-world case** where user complaints led to applying an algorithm, which in turn led to concrete performance improvements.
+
+Seeing how a single small optimization transformed the overall user experience, I learned that algorithm-driven performance optimization is **truly important** in frontend development as well.

@@ -1,5 +1,8 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
+import { useLocale } from '../lib/i18n/context';
 
 interface PostCardProps {
   title: string;
@@ -16,8 +19,10 @@ export function PostCard({
   tags = [],
   thumbnail,
 }: PostCardProps) {
+  const locale = useLocale();
+
   return (
-    <Link href={`/posts/${slug}`} className="group block py-[15px]">
+    <Link href={`/${locale}/posts/${slug}`} className="group block py-[15px]">
       <div className="flex h-[100px] items-center justify-between gap-4 sm:gap-8">
         <div className="flex flex-1 flex-col gap-2">
           <h2 className="text-base font-bold text-foreground group-hover:underline group-hover:underline-offset-4 sm:text-xl">

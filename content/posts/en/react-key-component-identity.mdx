@@ -1,0 +1,178 @@
+---
+title: How React Keys Identify Components
+description: A component duplication bug caused by React key collisions, and how mount/unmount lifecycles behave during reconciliation
+date: 2026-03-17
+slug: react-key-component-identity
+tags: [Editor, React]
+---
+
+## Why Must React Keys Be Unique?
+
+In React Fiber's reconciliation process, the key is not just an optimization -- it serves as a precise identifier for components. When keys are duplicated, a warning appears in development mode, but the more serious problem is that React incorrectly reuses components, causing mount/unmount lifecycles to behave differently than intended.
+
+I personally experienced an issue where React `key` values weren't properly differentiated, resulting in **components being duplicated**. This experience taught me the importance of React keys and how mount/unmount lifecycles actually work.
+## The Problem
+During collaborative editing, an issue was reported where cursors were duplicated when three or more people were editing.
+
+The combination of a collaborative editing environment and an unprecedented component duplication phenomenon made it nearly impossible to even guess the root cause. In particular, reproducing a situation with three or more concurrent editors by yourself was challenging.
+I ended up using two computers with three browser windows open, and through multiple rounds of testing, I was able to pinpoint the exact reproduction scenario.
+
+**Reproduction Scenario:**
+- On User A's screen
+- Users B and C are editing the same text
+- User B moves their cursor to a different text component
+- Result: On User A's screen, User B's cursor appears at both the old and new positions simultaneously
+
+## Root Cause
+Initially, I suspected network synchronization delays or state update ordering issues in the collaborative editing environment. However, after extensive debugging, I discovered a surprisingly simple root cause.
+
+It was React **`key` duplication**.
+On User A's screen, the cursor components for remote users were all using `remoteTextId` as their `key`. This meant React couldn't distinguish between cursors of multiple users editing the same text.
+
+When keys are duplicated during React's reconciliation, it cannot correctly decide which components to keep and which to remove. So when User B moved to a different text, the cursor at the previous position wasn't unmounted -- it remained while a new cursor was added at the new position, resulting in **a component duplication where a single user's cursor appeared in two places simultaneously**.
+
+**Incorrect key example**
+```javascript
+{remote.map(p => (
+  <RemoteCursor
+    key={p.remoteTextId} // Only text ID used - can be duplicated among siblings
+  />
+))}
+```
+
+## React Reconciliation and Mount/Unmount Lifecycle
+
+### The Reconciliation Process
+
+When a new render occurs, React compares the previous Virtual DOM with the new Virtual DOM to determine what changes need to be applied to the actual DOM. This process is called reconciliation.
+
+Reconciliation aims to perform only the necessary DOM operations for performance optimization. For example, if only 1 item changes out of 1000 list items, it updates just that 1 item instead of redrawing everything.
+
+### React Component Lifecycle Summary
+
+|Phase|Timing|Key Actions|
+|---|---|---|
+|**Mount**|When a component is first created and added to the DOM|Instance creation, DOM element addition, initial state setup, event listener registration|
+|**Update**|When props or state change|Compare old and new values, re-render only changed parts, reflect changes in DOM|
+|**Unmount**|When a component is removed from the DOM|Run cleanup, release event listeners/timers/subscriptions, remove DOM elements and free memory|
+
+## Key Points
+- **Mount**: The component's "birth" -- initializing necessary resources
+- **Update**: The component's "change" -- responding appropriately to state changes
+- **Unmount**: The component's "death" -- cleanup to prevent memory leaks
+
+## Component Duplication From Reconciliation and Lifecycle Perspective
+
+### From the Reconciliation Perspective
+
+React identifies components by `key` when comparing Virtual DOMs.
+The remote users' cursor components all shared the same key while editing the same text, resulting in duplicate components with identical keys within a single component tree.
+- React recognizes "same key --> same component."
+
+- C was **still editing**, so a cursor component with the same `key` was alive and **being continuously updated**.
+
+- Because of this, when B moved, B's cursor should have been unmounted, but **C's update was applied first, preventing B's unmount from being processed**.
+
+- React ended up **not unmounting B's cursor and instead treating it as an update to a component with the same key**.
+
+- Meanwhile, a new cursor for B was mounted in the new text, ultimately leaving B's cursor existing in two places simultaneously.
+
+Bug scenario
+```
+Text1: B moves --> (B unmount pending) --> C edits --> C update & B unmount skipped & B update
+Text2: B mount
+```
+
+Normal behavior
+```
+Text1: B moves --> B unmount --> C edits --> C update
+Text2: B mount
+```
+
+
+This resulted in **B's cursor existing in two texts simultaneously -- a duplication**.
+
+
+### From the Lifecycle Perspective
+
+Under normal conditions, a cursor move should follow this flow:
+
+- Previous block: `RemoteCursor(B)` --> **Unmount** (`useEffect cleanup`)
+
+- New block: `RemoteCursor(B)` --> **Mount** (`useEffect`)
+
+ Normal log example
+
+```
+[UNMOUNT] B, alpha
+[MOUNT]   B, beta
+```
+
+But in the actual bug scenario:
+
+- Previous block: `RemoteCursor(B)` and `RemoteCursor(C)` share the same key
+
+- C keeps editing --> React sees this key as "an existing component"
+
+- Instead of unmounting B, it **processes it as an update**
+
+- A new B is mounted in the new block
+
+Bug log example
+
+```
+[MOUNT]   B, beta
+[UNMOUNT] B, alpha -- missing
+```
+
+The problem was that B's **unmount was replaced by an update before it could be called**, effectively skipping the unmount.
+
+
+- `key` isn't just a performance optimization value -- it's a **component identifier**.
+
+- Especially in collaborative editing where multiple users can edit the same block simultaneously, a **unique value like sessionId** must be used as the key.
+
+- Otherwise, React may **incorrectly process an update during reconciliation --> skip the unmount --> cause duplication** bugs.
+
+## OT, sessionId, and the Fix
+
+### Sessions in OT-Based Collaboration
+
+Collaborative editing is typically built on the **OT (Operational Transformation)** algorithm.
+
+- It transforms user editing operations so they can be accepted regardless of order or timing.
+
+- Each user is assigned a unique `sessionId` to **distinguish** them.
+
+In other words, at the OT level, "who performed which operation" is identified by sessionId.
+
+#### sessionId Is Needed in the UI Too
+
+Cursor display is also a UI concern: showing "who is editing where."
+However, the existing code used only remoteTextId for the key, without sessionId.
+As a result, when B and C were in the same block, key collisions occurred, and React couldn't properly distinguish the cursors.
+
+#### Fixing with sessionId
+
+The fix was straightforward. **Incorporate the sessionId that already exists in OT into the key design.**
+Using `sessionId` guarantees uniqueness among siblings.
+
+```javascript
+// Fixed code
+{remote.map(p => (
+  <RemoteCursor
+    key={p.sessionId}
+  />
+))}
+```
+
+
+### Why React Keys Must Be Unique...
+
+This issue started with a seemingly simple symptom: cursors "appearing duplicated" in the UI. But the root cause lay in React key design.
+
+Initially I suspected network synchronization issues or state update ordering, but the cause turned out to be surprisingly fundamental.
+It was simply a matter of overlooking the principle: "duplicate key --> incorrect reconciliation --> missed unmount."
+
+Keys aren't just a performance optimization tool -- they're the mechanism that determines a component's identity.
+Even when no warning is visible, key collisions can undermine component identity in unpredictable ways.

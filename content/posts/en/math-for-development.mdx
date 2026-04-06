@@ -1,0 +1,255 @@
+---
+title: Is Math a Prerequisite for Software Development?
+description: Solving a problem that DOM APIs alone couldn't handle, using high school math
+date: 2026-03-16
+slug: math-for-development
+tags: [Editor, JavaScript]
+---
+
+## Is Math a Prerequisite for Development?
+
+People who are just getting into programming often ask, "I gave up on math -- can I still become a developer?" Most people answer, "You don't need math. Especially not for frontend."
+
+I'm a frontend developer whose major was mathematics. So I actually get the opposite questions: "Does being good at math help with development?" or "You must ace coding tests, right?"
+
+In reality, you can start developing without any math background. But when you face more sophisticated and complex problems, the story changes.
+
+While working on an editor, I encountered a problem that DOM APIs alone couldn't solve, and I resolved it using high school math.
+
+## The Problem
+
+As I mentioned in a previous post, the editor product I worked on used a **custom cursor implementation**. To draw a cursor manually, **every property -- position, width, height, blink interval -- has to be calculated and implemented by hand.**
+
+The cursor logic was working fine without any major issues. But one day, **a shape rotation feature was added**, and an unexpected problem emerged.
+
+When a shape is rotated, the text inside it rotates along with it. However, the cursor couldn't follow the rotation and **ended up being drawn at a completely wrong position**.
+
+At first, I thought:
+
+> "The shape rotates easily with transform: rotate, so the cursor should be similar, right?"
+
+But that was **a very wrong assumption**...
+
+## Root Cause
+
+The cursor rendering logic relied on the `getBoundingClientRect()` method to obtain the position and dimensions of DOM elements.
+It used the coordinates and size of text elements to calculate the cursor's position, width, and height.
+
+The problem was with `getBoundingClientRect()` itself.
+
+`getBoundingClientRect()` doesn't return the "actual size" of a rotated element.
+Instead, it returns the **bounding box** -- the smallest axis-aligned rectangle that fully contains the rotated element.
+![](https://velog.velcdn.com/images/semimi/post/481d5cbb-637a-4496-8c72-dba31173214e/image.png)
+
+
+In other words, it wasn't returning the original element's dimensions before rotation, but the dimensions of the **smallest enclosing axis-aligned rectangle** after rotation.
+
+The text inside the rotated shape followed the rotation correctly, but since the cursor had to be calculated and drawn separately, it was using the **bounding box values of the rotated text** for positioning.
+As a result, the cursor appeared at a completely wrong location.
+
+The existing coordinate calculation logic couldn't solve this problem.
+
+Ultimately, to draw the cursor rotated along with the shape, I needed to find the **coordinates, width, and height of the text element in its rotated state**.
+
+## What I Had to Work With
+
+Here's the information I had available.
+Using this information, I needed to **draw the cursor at the correct position even in a rotated state**.
+>- The **bounding box coordinates, width, and height** of the rotated text element
+>- The rotation angle (theta)
+>- The **bounding box coordinates, width, and height** of the cursor provided by the browser
+
+Using this information, I needed to ensure **the cursor was drawn at the correct position even when rotated**.
+
+>- **Trigonometric functions (sin, cos)** for coordinate transformation before and after rotation
+>- **Point-to-line distance formula** for calculating relative coordinates inside the text
+
+1. **Find the original width and height of the text element before rotation**
+
+2. **Find the top-left and bottom-left vertex coordinates of the text in its rotated state**
+3. **Correct the cursor coordinates from the browser cursor to the actual position**
+
+4. **Use the line equation and distance formula to find the cursor's relative position**
+      Calculate the distance between the left boundary from step (2) and the cursor coordinates
+       --> Determine where the cursor should be positioned inside the text
+
+## Solution
+
+### 1. **Finding the Original Width and Height of the Text Element**
+
+Using the **bounding box (W, H)** of the rotated text element and the **rotation angle (theta)**,
+I **reverse-calculated** the actual width and height of the original (unrotated) text using **trigonometric functions**.
+![](https://velog.velcdn.com/images/semimi/post/9473fc87-1966-4312-be71-7d20dc17fb26/image.png)
+
+
+
+
+```jsx
+function getOriginalTextDimensions(rotate, boundingBox, cos, sin) {
+  const W = boundingBox.width;   // Bounding box width of the rotated text element
+  const H = boundingBox.height;  // Bounding box height of the rotated text element
+
+  // w: original width, h: original height
+  // W = w * |cos(theta)| + h * |sin(theta)|  (bounding box width)
+  // H = w * |sin(theta)| + h * |cos(theta)|  (bounding box height)
+
+  // Solving the system of equations:
+  // W = w * cos + h * sin  ... (1)
+  // H = w * sin + h * cos  ... (2)
+  //
+  // (1) + (2): W + H = (w + h) * (cos + sin)
+  // (1) - (2): W - H = (w - h) * (cos - sin)
+  //
+  // Therefore:
+  // w + h = (W + H) / (cos + sin)
+  // w - h = (W - H) / (cos - sin)
+  //
+  // Final result:
+  // w = [(W + H) / (cos + sin) + (W - H) / (cos - sin)] / 2
+  // h = [(W + H) / (cos + sin) - (W - H) / (cos - sin)] / 2
+
+  // Calculation considering the sign of cos and sin for each quadrant
+  if (rotate < 90) {
+    // 0 <= theta < 90: cos > 0, sin > 0
+    const w = ((W + H) / (cos + sin) + (W - H) / (cos - sin)) / 2;
+    const h = ((W + H) / (cos + sin) - (W - H) / (cos - sin)) / 2;
+    return { width: w, height: h };
+  }
+  if (rotate < 180) {
+  }
+  if (rotate < 270) {
+  }
+  if (rotate < 360) {
+  }
+}
+
+```
+
+The original text **dimensions (w, h)** were **reverse-calculated using trigonometric functions and a system of equations**.
+
+
+
+### 2. **Finding the Top-Left and Bottom-Left Vertex Coordinates in the Rotated State**
+
+Using the original text's **width/height (w, h)**, **bounding box coordinates (X, Y)**, and **rotation angle (theta)** obtained earlier, I calculated the top-left or bottom-left vertex coordinates of the rotated text using **trigonometric functions**.
+
+```jsx
+function getTopLeftVertex(rotate, originalText, cos, sin, boundingBox) {
+  const X = boundingBox.left;
+  const Y = boundingBox.top;
+  const W = boundingBox.width;
+  const H = boundingBox.height;
+  const w = originalText.width;
+  const h = originalText.height;
+
+  if (rotate < 90) {
+    return { x: X + h * sin, y: Y };
+  }
+// Handle other quadrants
+}
+
+```
+![](https://velog.velcdn.com/images/semimi/post/6c878e05-1318-45b2-a9d3-e33a09766d35/image.png)
+
+When `rotate < 90`, the top-left vertex is located at **`h * sin(theta)` to the right from the bounding box's left edge**.
+
+
+
+### 3. **Correcting the Cursor Coordinates from the Browser Cursor**
+
+The existing browser cursor is also provided as a **bounding box** in its rotated state,
+so the cursor's Top position needs to be corrected using **trigonometric functions**.
+
+```jsx
+function getRotatedCursorTop(rotate, browserCursor, cos, sin) {
+  const X = browserCursor.left;
+  const Y = browserCursor.top;
+  const W = browserCursor.width;
+  const H = browserCursor.height;
+
+  // 1. Find the Bottom coordinate of the browser cursor in rotated state
+  let rotatedCursorBottom;
+  if (rotate < 90) {
+    rotatedCursorBottom = { x: X, y: Y + H };
+  } else {
+    // Other quadrants
+  }
+
+  // 2. Move by the browser cursor height to calculate the Top coordinate
+  let rotatedCursorTop;
+  if (rotate < 90) {
+    rotatedCursorTop = {
+      x: rotatedCursorBottom.x + H * sin,
+      y: rotatedCursorBottom.y - H * cos
+    };
+  } else {
+    // Other quadrants
+  }
+  return rotatedCursorTop;
+}
+
+```
+
+### 4. **Using the Line Equation and Distance Formula to Find the Cursor's Relative Position**
+
+To draw the cursor precisely **inside the rotated text element**, I needed to calculate the **relative position within the text** based on the **cursor's absolute coordinates**.
+
+To do this, I treated the **left boundary** of the rotated text element as a **line**
+and calculated **how far the cursor is from that line** using the **point-to-line distance formula**.
+
+```javascript
+function calculateCursorRelativePosition(rotate, cursorTopCoord, topLeftVertex, bottomLeftVertex) {
+  // topLeftVertex, bottomLeftVertex: the two points forming the left boundary of the rotated shape
+  // cursorTopCoord: the Top position of the rotated cursor
+
+  // Step 1: Derive the line equation from the two points
+  // General form: ax + by + c = 0
+  const a = bottomLeftVertex.y - topLeftVertex.y;  // y2 - y1
+  const b = topLeftVertex.x - bottomLeftVertex.x;  // x1 - x2 (note: reversed order)
+  const c = bottomLeftVertex.x * topLeftVertex.y - topLeftVertex.x * bottomLeftVertex.y;
+
+  // Step 2: Apply the point-to-line distance formula
+  // distance = |ax0 + by0 + c| / sqrt(a^2 + b^2)
+  const numerator = Math.abs(a * cursorTopCoord.x + b * cursorTopCoord.y + c);
+  const denominator = Math.sqrt(a * a + b * b);
+  const distance = numerator / denominator;
+
+  if (rotate < 90) {
+    return distance
+  }
+  // Other quadrants
+}
+```
+
+The resulting `distance` value, when applied relative to the text element, allows the **cursor to be drawn at the correct position inside the text**.
+
+### What About 90, 180, 270, and 360 Degrees?
+
+If you look at the logic, specific angles like 90, 180, 270, and 360 degrees don't use the trigonometric calculations.
+This is for the following reasons:
+
+- **Tangent singularity issues**: At 90 and 270 degrees, `tan(theta)` becomes infinity, making standard trigonometry-based calculations impossible.
+- **Slope calculation failure**: At 180 and 360 degrees, the rotation direction is horizontal, so the slope calculation from two points has a denominator of zero. (`a = 0`, making `-b / a` undefined)
+- **Accurate bounding box return**: At these angles, `getBoundingClientRect()` returns the bounding box that directly corresponds to the rotated shape, so positions can be corrected without complex math.
+
+Therefore, these cases are handled with direct corrections that account for each angle's specific characteristics:
+
+```javascript
+ if (rotate === 90) {
+    // 90-degree rotation: swap x,y coordinates + adjust direction
+    return { x: cursorTopCoord.y - boundingBox.top, y: boundingBox.right - cursorTopCoord.x };
+  }
+```
+
+
+## Does Development Require Math?
+
+I was able to solve the cursor positioning issue using math I learned in high school.
+
+Facing the limits of what the browser could provide through DOM APIs alone, I realized that some problems can only be solved by calculating things yourself.
+
+Of course, saying "you can be a developer even if you gave up on math" isn't wrong. In practice, most development work is perfectly doable without math.
+
+But if you want more precision and higher quality in your work, mathematical thinking becomes a powerful tool when facing complex UI problems, performance optimization, or algorithm implementation.
+
+Math isn't strictly a **necessary condition** for development, but through this experience I learned it can be a **sufficient condition for producing better results**.

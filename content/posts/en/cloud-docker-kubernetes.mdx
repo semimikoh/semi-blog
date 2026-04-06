@@ -1,0 +1,244 @@
+---
+title: 'What Are the Differences Between Cloud, Docker, and Kubernetes?'
+description: Understanding what problems Cloud, Docker, and Kubernetes each solve
+date: 2026-03-20
+slug: cloud-docker-kubernetes
+tags: [Cloud, Docker, Kubernetes, Infrastructure]
+---
+
+## What Are the Differences Between Cloud, Docker, and Kubernetes?
+
+Cloud, Docker, and Kubernetes frequently appear together when studying deployment, servers, and containers.
+Because of this, it's easy to initially feel like they all serve similar purposes.
+
+But when you break them down, these three technologies are interconnected yet solve distinctly different problems.
+
+- Cloud is a way to rent infrastructure
+- Docker is a tool for packaging an application's runtime environment into an image and running it as a container
+- Kubernetes is a platform for operating those containers across multiple servers
+
+In other words, they are not concepts at the same layer -- they are technologies responsible for different problems.
+
+In this post, rather than trying to understand all three at once, I've organized them by the specific problem each one solves.
+
+### What Is the Cloud?
+
+The cloud is commonly understood as "servers somewhere on the internet."
+That's not entirely wrong, but the key lies in **renting resources as needed, paying based on usage, and receiving operations as a managed service** -- rather than the physical location of the servers.
+
+In the past, running a service meant preparing your own servers, configuring networks, and managing storage and failure recovery yourself.
+In a cloud environment, you can create these resources when needed and scale them down when they're not.
+This reduces the upfront setup burden and allows flexible scaling as circumstances change.
+
+Cloud services are typically categorized as follows:
+
+- **IaaS**: Provides infrastructure like servers, networking, and storage.
+- **PaaS**: Provides a managed application runtime environment.
+- **SaaS**: Users simply use the software as a service.
+
+In short, the cloud solves the problem of **where to run your application**.
+
+### What Problem Does Docker Solve?
+
+Docker is a tool that bundles an application together with its runtime environment, enabling it to run in a consistent way anywhere.
+
+During development, you might encounter situations where something works on your machine but fails on the server.
+This can happen because library versions differ, runtime environments vary, or OS differences cause different execution results.
+
+Docker addresses this by packaging everything needed for execution into an **image** and running it as a **container**.
+This minimizes differences between development and production environments, allowing the same application to run more consistently.
+
+In short, Docker is **a tool for standardizing application runtime environments**.
+
+### How Do Layers, Images, and Containers Differ?
+
+The most frequently encountered concepts when learning Docker are layers, images, and containers.
+
+- **Layer**: A snapshot of filesystem changes.
+- **Image**: An execution package built by stacking layers.
+- **Container**: A running process created from an image.
+
+For example, when you execute commands like `COPY`, `RUN`, or `ADD` in a Dockerfile, each result is stacked as a layer.
+Thanks to this structure, unchanged steps can reuse cached layers, making builds faster.
+
+An image is the execution bundle built from these stacked layers, and a container is the live running state of that image.
+
+### Why Are Containers Considered Disposable?
+
+Containers can create or modify files during execution, but those changes are stored in the container's **writable layer** by default.
+Therefore, when a container is deleted, its changes may be lost as well.
+
+Images, on the other hand, are immutable.
+So the typical practice is to keep images as-is and delete and recreate containers as needed.
+
+Important data should not live solely inside a container -- it's generally stored in volumes, external storage, or databases.
+
+In short, containers are **closer to easily replaceable execution units than to permanent artifacts**.
+
+### Why Do We Need a Dockerfile?
+
+A Dockerfile is the blueprint for building an image.
+It specifies which base image to use, which files to copy, which commands to run, and what to execute when the container starts.
+
+For example:
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+CMD ["node", "dist/server.js"]
+```
+
+Each command means the following:
+
+- `FROM`: Specifies the base image to start from.
+- `COPY`: Copies files into the image.
+- `RUN`: Executes a command during the build.
+- `CMD`: Specifies the default command to run when the container starts.
+
+In short, a Dockerfile is **a file that records the runtime environment as code**.
+
+### What Problem Does Kubernetes Solve?
+
+While Docker can build images and run containers, that alone is often not enough for real-world operations.
+
+For example, the following problems can arise:
+
+- How do you restart a container when it dies?
+- How do you scale up when traffic increases?
+- How do you distribute deployments across multiple servers?
+- How do you deploy a new version with zero downtime?
+
+Kubernetes is a platform designed to solve these problems.
+In other words, if Docker is **a tool for creating containers**, Kubernetes is **a platform for operating those containers across multiple servers**.
+
+### How Do Docker and Kubernetes Connect?
+
+The relationship between the two can be summarized simply:
+
+1. You build an application image with Docker.
+2. You prepare that image to run as a container.
+3. Kubernetes manages those containers across multiple servers.
+
+In other words, Docker creates the **execution unit**, and Kubernetes manages it as an **operational unit**.
+
+### What Should You Use Locally?
+
+Rather than starting with a cloud environment, it's easier to understand the concepts by experimenting locally.
+The tools commonly used for this are **kind** and **kubectl**.
+
+- **kind**: A tool that uses Docker containers as nodes to create a local Kubernetes cluster.
+- **kubectl**: A CLI tool for querying and manipulating Kubernetes clusters.
+
+With this combination, you can practice the basic workflow of cluster creation, resource deployment, and service connectivity right on your local machine.
+
+### Summary
+
+At first, Cloud, Docker, and Kubernetes may all seem like similar technologies.
+But when you break them down, each has a clearly distinct role.
+
+- Cloud is **an environment for renting infrastructure**
+- Docker is **a tool for packaging application runtime environments**
+- Kubernetes is **a platform for operating those containers**
+
+That said, a cluster is not simply an environment for running a few containers -- it's a structure where multiple nodes and management components work together.
+
+### Control Plane and Worker Nodes
+
+#### Control Plane
+
+The Control Plane manages the entire cluster.
+Its key components include:
+
+- **API Server**: The gateway through which all cluster requests pass.
+- **Scheduler**: Decides which Pod to place on which node.
+- **Controller**: Maintains the current state to match the desired state.
+
+For example, if the desired state says "maintain 3 Pods," and one Pod disappears, the Controller recreates it to match.
+
+#### Worker Node
+
+Worker Nodes are the nodes where Pods actually run.
+In other words, they are the execution environments where your applications actually operate.
+
+### Why Do We Need Namespaces?
+
+A Namespace is a logical partition for resources within the same cluster.
+
+For example, it can be used in the following ways:
+
+- Separating development / staging / production environments
+- Isolating resources by team
+- Managing resources with the same name in different spaces
+
+In short, a Namespace is a unit for organizing and separating resources within a single cluster.
+
+### What Is a Pod?
+
+A Pod is the smallest execution unit in Kubernetes.
+It can consist of one or more containers, and containers within the same Pod can share networking and volumes.
+
+An important point is that Pods are not permanent instances.
+They can be recreated at any time due to node failures, rescheduling, or updates.
+
+In short, Pods are execution units that can be replaced as needed, rather than long-lived objects to hold onto.
+
+### Why Do We Need Deployments?
+
+Since Pods can be recreated, they are generally not managed directly.
+Instead, **Deployments** are used to manage Pods.
+
+A Deployment handles the following:
+
+- Maintaining a desired number of Pods
+- Rolling updates
+- Rollbacks
+- Recovery from failures
+
+Internally, it works with the following structure:
+
+**Deployment -> ReplicaSet -> Pod**
+
+In other words, when a Deployment declares a desired state, the ReplicaSet adjusts the actual number of Pods to match.
+
+### Why Do We Need Services?
+
+When a Pod is recreated, its IP address may change.
+Because of this, directly accessing Pods is not reliable.
+
+A Service solves this by providing a **stable access point**.
+A Service uses label selectors to find and connect to specific Pods, and clients access the Service rather than individual Pods.
+
+This means that even when Pods are replaced, the Service can continue accepting requests under the same name and virtual IP.
+
+### What Should You Use Locally?
+
+Rather than starting with a cloud environment, it's easier to understand the concepts by experimenting locally.
+The tools commonly used for this are **kind** and **kubectl**.
+
+- **kind**: A tool that uses Docker containers as nodes to create a local Kubernetes cluster.
+- **kubectl**: A CLI tool for querying and manipulating Kubernetes clusters.
+
+With this combination, you can practice the basic workflow of cluster creation, resource deployment, and service connectivity right on your local machine.
+
+### Conclusion
+
+Cloud, Docker, and Kubernetes often appear together, but each addresses a different problem.
+
+- Cloud is **an environment for renting infrastructure**.
+- Docker is **a tool for packaging application runtime environments**.
+- Kubernetes is **a platform for operating those containers**.
+
+And within Kubernetes, the following structures are key:
+
+- Cluster
+- Control Plane / Worker Node
+- Namespace
+- Pod
+- Deployment
+- Service
+
+Understanding this flow first makes it much easier when you later encounter resources like Storage, Gateway API, and HPA.

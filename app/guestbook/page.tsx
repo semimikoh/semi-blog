@@ -1,8 +1,6 @@
-export default function GuestbookPage() {
-  return (
-    <div>
-      <h3>Guestbook</h3>
-      <p></p>
-    </div>
-  );
+import { redirect } from 'next/navigation';
+import { defaultLocale } from '../lib/i18n/config';
+
+export default function GuestbookRedirect() {
+  redirect(`/${defaultLocale}/guestbook`);
 }

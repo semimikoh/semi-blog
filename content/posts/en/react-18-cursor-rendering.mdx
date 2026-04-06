@@ -1,0 +1,743 @@
+---
+title: "How React 18 Handles Events: Synchronous vs Asynchronous"
+description: How Concurrent Rendering and Auto Batching changed the actual DOM rendering order, discovered through analyzing React's internal code
+date: 2026-03-14
+slug: react-18-cursor-rendering
+tags: [Editor, React, JavaScript]
+---
+
+>_When developing a text editor for the web, you inevitably face situations where you need to build things that you'd normally take for granted._
+>
+>_Over about a year and a half of developing a text editor, I found myself implementing features I assumed the web would handle natively, and encountered some unusual problems along the way._
+>
+>_When building an editor, there are requirements that the browser's default cursor can't fulfill -- multi-cursor support, precise control over text positioning, and smooth UX -- which means you sometimes need to implement the cursor yourself._
+>
+>_After migrating to React 18, however, I experienced a phenomenon where the cursor would disappear during text input. While debugging this, I discovered that React 18's event handling worked differently from what I had assumed._
+>
+>_In this post, I'll share what I learned about the changes in React 18's event handling flow by directly analyzing its internal code, and how those changes affect actual rendering timing._
+
+
+
+## The Problem
+
+To draw a cursor, you need the actual height of the text element. This means the cursor component must render after the text component has been committed to the DOM.
+
+To render the cursor after the text component's commit, the cursor component was intentionally deferred using a microtask.
+
+```jsx
+queueMicrotask(() => {
+  // Calculate text element size, then render cursor
+  cursorComponent();
+});
+
+```
+
+After migrating from React 17 to React 18, the custom cursor started disappearing during keyboard text input.
+## Root Cause
+
+Comparing keyboard input events with mouse click events revealed the following difference:
+
+- **Keyboard input**: Text component re-renders --> Cursor component doesn't render
+- **Mouse click**: No text component re-render --> Cursor component renders normally
+
+The **text DOM wasn't ready yet** when the cursor tried to render, causing the height calculation to fail and the rendering to break.
+
+Debugging revealed:
+- The text component and cursor component were **rendering within the same microtask**
+- The cursor executed first, **referencing a text DOM that hadn't been created yet** --> failure
+
+In other words, in React 18, the text rendering itself was deferred to a **microtask** rather than happening immediately after the event, which broke the existing cursor rendering approach.
+
+**Summary of the Core Problem**
+1. In React 18, the text component's rendering is **deferred to a microtask**
+2. The cursor component is still **rendered in a microtask**
+3. Cursor rendering attempted **before text DOM creation** --> rendering failure and UX issues
+
+The official documentation concepts of **Automatic Batching and Concurrent Rendering** alone weren't enough to identify the cause. Ultimately, I had to **examine React's internal code directly** to understand the problem.
+
+## Analyzing React 18's Changes
+
+### Concurrent Rendering
+
+One of the biggest changes in React 18 is the introduction of **Concurrent Rendering**. Concurrent Rendering **schedules multiple tasks concurrently** and **classifies them by priority**, enabling the UI to render progressively without blocking the browser while maintaining **high responsiveness**.
+
+The core problems React's Concurrent Rendering aims to solve:
+
+- Maintaining high responsiveness during **large-scale screen transitions**
+- Guaranteeing **immediate response** to user input
+- **Progressive rendering** without blocking the browser
+### The Lane System and Priorities
+
+React 18 uses the **Lane** system to manage task priorities. Lanes assign a priority to each update, ensuring that important updates are processed first.
+
+Lanes are implemented using bitmasks, with higher priority toward the right:
+```javascript
+// React 18 Lane definitions
+const NoLanes = 0b0000000000000000000000000000000;
+const NoLane = 0b0000000000000000000000000000000;
+
+const SyncLane = 0b0000000000000000000000000000010;
+const InputContinuousLane = 0b0000000000000000000000000001000;
+const DefaultLane = 0b0000000000000000000000000100000;
+
+const TransitionLanes = 0b0000000011111111111111110000000;
+const TransitionLane1 = 0b0000000000000000000000010000000;
+// ... up to TransitionLane16
+
+const RetryLanes = 0b0000111100000000000000000000000;
+const RetryLane1 = 0b0000000100000000000000000000000;
+// ... up to RetryLane4
+```
+
+#### The Discrete Event Concept and the Priority System
+
+A **Discrete Event** is an event that is **individually and distinctly triggered** by user actions. Because it originates from a user action, it must be responded to immediately and has the highest scheduling priority.
+
+**DOM Event Classification**
+[react-dom/src/events/ReactDOMEventListener.js](https://github.com/facebook/react/blob/v18.2.0/packages/react-dom/src/events/ReactDOMEventListener.js#L410)
+```javascript
+// Determining priority by DOM event type
+function getEventPriority(domEventName) {
+  switch (domEventName) {
+    case 'click':
+    case 'input':
+    case 'keydown':
+    case 'keyup':
+    case 'submit':
+      return DiscreteEventPriority;  // Sync Lane
+
+    case 'drag':
+    case 'scroll':
+    case 'mousemove':
+    case 'wheel':
+      return ContinuousEventPriority;  // InputContinuous Lane
+
+    default:
+      return DefaultEventPriority;  // Default Lane
+  }
+}
+```
+
+**Lane Mapping by Event Type:**
+[react-reconciler/src/ReactFiberLane.js](https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberLane.js#L166)
+
+| Event Type | Examples | Corresponding Lane | Priority |
+| ---------- | ------------------------- | --------------------- | -------- |
+| Discrete   | click, keydown, input     | `SyncLane`            | Very High |
+| Continuous | scroll, mousemove, wheel  | `InputContinuousLane` | Medium    |
+| Default    | fetch, setTimeout, etc.   | `DefaultLane`         | Normal    |
+| Transition | page transitions, large state changes | `TransitionLanes` | Low    |
+
+### Sync Lane and the SyncQueue Processing Mechanism
+
+To ensure immediate responsiveness, updates triggered by Discrete Events are processed via **Sync Lane**, and React uses an **internal syncQueue** instead of the general scheduler. The process works as follows:
+
+**Discrete Event Processing Flow:**
+
+1. **Sync Lane Assignment**
+    Updates from Discrete Events are classified as `SyncLane`.
+
+2. **Registration in SyncQueue**
+    The synchronous render function `performSyncWorkOnRoot` is registered in `syncQueue`.
+
+```javascript
+// syncQueue registration during Discrete Event processing
+function ensureRootIsScheduled(root, currentTime) {
+  const nextLanes = getNextLanes(root, NoLanes);
+  const newCallbackPriority = getHighestPriorityLane(nextLanes);
+
+  if (newCallbackPriority === SyncLane) {
+    // For Sync Lane, register in syncQueue
+    scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root));
+  }
+}
+```
+
+3. **Rendering Execution**
+	`flushSyncCallbacks()` then executes the callbacks registered in `syncQueue`, performing the following:
+    - Render all components with changed state
+    - Commit processing for changed components
+    - DOM update execution
+
+Through this priority system, React responds quickly to immediate user input while **appropriately deferring lower-priority updates** to optimize overall performance.
+
+The key point, however, is that in React 18 the **timing of syncQueue processing changed**.
+
+### Comparing React 17 vs 18 syncQueue Processing
+
+The timing at which callbacks added to `syncQueue` are processed changed between React 17 and 18. [Related commit](https://github.com/facebook/react/commit/754e307284d5b4de32da1bd64c179885f6d9f253)
+
+
+#### React 17: Processed Immediately After Discrete Event Handling
+1. **Register callback in syncQueue**:
+	If component state changed during discrete event processing, register the sync render callback `performSyncWorkOnRoot` in syncQueue
+
+[react-reconciler/src/SchedulerWithReactIntegration.new.js](https://github.com/facebook/react/blob/v17.0.2/packages/react-reconciler/src/SchedulerWithReactIntegration.new.js#L148)
+```javascript
+export function scheduleSyncCallback(callback: SchedulerCallback) {
+  if (syncQueue === null) {
+	syncQueue = [callback]; // Register performSyncWorkOnRoot
+  } else {
+    syncQueue.push(callback);
+  }
+}
+```
+
+2. **Immediate processing**
+	`flushSyncCallbackQueue` is called immediately after discrete event processing
+
+[react-reconciler/src/ReactFiberWorkLoop.old.js](https://github.com/facebook/react/blob/v17.0.2/packages/react-reconciler/src/ReactFiberWorkLoop.old.js#L1181-L1186)
+```javascript
+export function discreteUpdates(fn, a, b, c, d) {
+  // ... discrete event processing
+  try {
+    return runWithPriority(UserBlockingSchedulerPriority, fn.bind(null, a, b, c, d));
+  } finally {
+    if (executionContext === NoContext) {
+      flushSyncCallbackQueue(); // Execute immediately!
+    }
+  }
+}
+```
+
+3. **Callback execution**
+	`flushSyncCallbackQueue` executes the callback `performSyncWorkOnRoot` from syncQueue
+
+[react-reconciler/src/SchedulerWithReactIntegration.new.js](https://github.com/facebook/react/blob/v17.0.2/packages/react-reconciler/src/SchedulerWithReactIntegration.new.js#L215-L223)
+```javascript
+function flushSyncCallbackQueueImpl() {
+  if (syncQueue !== null) {
+    const queue = syncQueue;
+    syncQueue = null; // Execute callbacks in syncQueue
+    for (let i = 0; i < queue.length; i++) {
+      let callback = queue[i]; // performSyncWorkOnRoot
+      do {
+        callback = callback(true);
+      } while (callback !== null);
+    }
+  }
+}
+```
+
+
+#### React 18: syncQueue Callbacks Processed as Microtasks
+1. **Register callback in syncQueue**
+	If component state changed during discrete event processing, register the sync render callback `performSyncWorkOnRoot` in syncQueue (same as React 17)
+
+[react-reconciler/src/ReactFiberSyncTaskQueue.new.js](https://github.com/facebook/react/blob/v18.0.0/packages/react-reconciler/src/ReactFiberSyncTaskQueue.new.js#L23-L33)
+```javascript
+export function scheduleSyncCallback(callback: SchedulerCallback) {
+  if (syncQueue === null) {
+	syncQueue = [callback]; // Register performSyncWorkOnRoot
+  } else {
+    syncQueue.push(callback);
+  }
+}
+```
+
+2. **Register as microtask**
+	Register the syncQueue callback processing `flushSyncCallbackQueue` as a microtask [Change commit](https://github.com/facebook/react/commit/754e307284d5b4de32da1bd64c179885f6d9f253#diff-c2e7c066a092dcec9af6a3a6cddba1326c3f546469b42cc5467573daf4e647a0R702)
+
+[react-reconciler/src/ReactFiberWorkLoop.new.js](https://github.com/facebook/react/blob/v18.0.0/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L805-L813)
+```javascript
+function ensureRootIsScheduled(root, currentTime) {
+  if (newCallbackPriority === SyncLane) {
+    // Register callback in syncQueue
+    scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root));
+    if (supportsMicrotasks) {
+      // Schedule as microtask!
+      scheduleMicrotask(() => {
+        if (executionContext === NoContext) {
+          flushSyncCallbacks();
+        }
+      });
+    }
+  }
+}
+```
+
+3. **No immediate processing**
+	`flushSyncCallbackQueue` is NOT called after discrete event processing [Change commit](https://github.com/facebook/react/pull/21327/commits/361e84af83fcf9e06d663145827a6c8c103d406b#diff-c2e7c066a092dcec9af6a3a6cddba1326c3f546469b42cc5467573daf4e647a0L1163-L1165)
+
+[react-reconciler/src/ReactFiberWorkLoop.new.js](https://github.com/facebook/react/blob/v18.0.0/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L1333-L1353)
+
+```javascript
+export function discreteUpdates(fn, a, b, c, d) {
+ try {
+   setCurrentUpdatePriority(DiscreteEventPriority);
+   return fn(a, b, c, d); // discrete event processing
+ } finally {
+   setCurrentUpdatePriority(previousPriority);
+   // React 18: No flushSyncCallbackQueue call!
+ }
+}
+```
+
+4. **Execution in microtask**:
+	When the microtask runs, it executes the `flushSyncCallback` function ([function renamed](https://github.com/facebook/react/pull/21229/commits/c8bd181095dbddcb6e9d9725b53d51acea382201#diff-2dcea212c73f91365d629bf1578aa5b488ee5022e494138fb6fdcd59c99d235bL34-R51)) registered in step [2], which runs the callback `performSyncWorkOnRoot` from syncQueue (same as React 17)
+
+[react-reconciler/src/ReactFiberSyncTaskQueue.new.js](https://github.com/facebook/react/blob/v18.0.0/packages/react-reconciler/src/ReactFiberSyncTaskQueue.new.js#L59-L68)
+```javascript
+export function flushSyncCallbacks() {
+ if (syncQueue !== null) {
+   const queue = syncQueue;
+   syncQueue = null;
+
+   // Execute callbacks in syncQueue
+   for (let i = 0; i < queue.length; i++) {
+     let callback = queue[i]; // performSyncWorkOnRoot
+     do {
+       callback = callback(true);
+     } while (callback !== null);
+   }
+ }
+}
+```
+
+**Key Difference:**
+- **React 17**: Rendering executed immediately after discrete event processing
+- **React 18**: Rendering executed in a microtask after discrete event processing
+
+Due to the above change, in React 18, **synchronous rendering triggered by Discrete Events (keyboard, click, etc.) now executes within a microtask**. This directly caused the cursor rendering issue mentioned earlier, as the text component's rendering was deferred to a microtask.
+
+#### **How React 18 Handles Continuous and Default Events**
+
+In React 18, beyond `Discrete Events`, there are also **`Continuous`, `Default`, and `Idle` events**, which are classified with Lane priorities other than `SyncLane` and **processed asynchronously through the Scheduler**.
+
+1.  **Register with Scheduler**
+	Schedule `performConcurrentWorkOnRoot` as a macrotask.
+	For non-`SyncLane` cases, `scheduleCallback()` from the Scheduler is called based on event priority to register the callback as a macrotask.
+
+[react-reconciler/src/ReactFiberWorkLoop.new.js](https://github.com/facebook/react/blob/v18.0.0/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L822-L848)
+```javascript
+function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
+  if (newCallbackPriority === SyncLane) {
+    // SyncLane processing
+  } else {
+    // Continuous/Default/Idle processing
+    let schedulerPriorityLevel;
+    switch (lanesToEventPriority(nextLanes)) {
+      case DiscreteEventPriority:
+        schedulerPriorityLevel = ImmediateSchedulerPriority;
+        break;
+      case ContinuousEventPriority:
+        schedulerPriorityLevel = UserBlockingSchedulerPriority;
+        break;
+      case DefaultEventPriority:
+        schedulerPriorityLevel = NormalSchedulerPriority;
+        break;
+      case IdleEventPriority:
+        schedulerPriorityLevel = IdleSchedulerPriority;
+        break;
+      default:
+        schedulerPriorityLevel = NormalSchedulerPriority;
+        break;
+    }
+    // Asynchronous scheduling through the Scheduler
+    newCallbackNode = scheduleCallback(
+      schedulerPriorityLevel,
+      performConcurrentWorkOnRoot.bind(null, root), // Scheduled as macrotask
+    );
+  }
+  root.callbackPriority = newCallbackPriority;
+  root.callbackNode = newCallbackNode;
+}
+```
+
+
+ 2.  **Execution in macrotask**
+	`performConcurrentWorkOnRoot` runs from the Scheduler's Task Queue, using Concurrent Mode for rendering.
+
+[react-reconciler/src/ReactFiberWorkLoop.new.js](https://github.com/facebook/react/blob/v18.0.0/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L901-L919)
+```javascript
+function performConcurrentWorkOnRoot(root, didTimeout) {
+  // Execute rendering
+  let exitStatus = shouldTimeSlice
+    ? renderRootConcurrent(root, lanes)  // Yieldable rendering
+    : renderRootSync(root, lanes);       // Synchronous rendering
+
+  if (exitStatus !== RootInProgress) {
+    if (exitStatus !== RootDidNotComplete) {
+      // Rendering complete - prepare commit
+      const finishedWork: Fiber = root.current.alternate;
+      root.finishedWork = finishedWork;
+      root.finishedLanes = lanes;
+      finishConcurrentRender(root, exitStatus, lanes);
+    }
+  }
+  // Schedule next work
+  ensureRootIsScheduled(root, now());
+  // Determine whether to continue execution
+  if (root.callbackNode === originalCallbackNode) {
+    return performConcurrentWorkOnRoot.bind(null, root);
+  }
+  return null;
+}
+```
+#### **Discrete vs Continuous/Default Event Comparison**
+
+| Category | Discrete Events | Continuous/Default Events |
+| ---------- | -------------------------------- | -------------------------------- |
+| **Lane** | SyncLane | ContinuousLane / DefaultLane |
+| **Scheduling** | `scheduleSyncCallback` --> microtask | `scheduleCallback` --> macrotask |
+| **Execution Function** | `performSyncWorkOnRoot` | `performConcurrentWorkOnRoot` |
+| **Rendering Mode** | Synchronous (`renderRootSync`) | Time-slicing (`renderRootConcurrent`) |
+| **Yieldable** | No | Yes |
+| **Batching** | Batched within microtask | Scheduler-based auto batching |
+
+## Auto Batching
+
+### What Is Auto Batching?
+
+**Batching** is a performance optimization technique where React groups multiple state updates into a single render. Before React 18, batching only worked inside React event handlers. In React 18, **all updates are automatically batched**.
+
+### Limited Batching in React 17
+
+In React 17, batching was only possible inside React event handlers:
+
+```javascript
+function handleClick() {
+  setCount(c => c + 1);  // No re-render
+  setFlag(f => !f);      // No re-render
+  // React batches into a single re-render
+}
+```
+
+However, batching didn't work inside asynchronous operations (Promises, setTimeout, etc.):
+
+```javascript
+function handleClick() {
+  fetchSomething().then(() => {
+    setCount(c => c + 1);  // First re-render
+    setFlag(f => !f);      // Second re-render
+  });
+}
+
+setTimeout(() => {
+  setCount(c => c + 1);    // First re-render
+  setFlag(f => !f);        // Second re-render
+}, 1000);
+```
+
+### React 18's Auto Batching
+
+With React 18's `createRoot`, batching is automatically applied in all contexts -- setTimeout, Promise, fetch, and more.
+
+```javascript
+function handleClick() {
+  fetchSomething().then(() => {
+    setCount(c => c + 1);  // No re-render
+    setFlag(f => !f);      // No re-render
+    // React batches into a single re-render
+  });
+}
+
+setTimeout(() => {
+  setCount(c => c + 1);    // No re-render
+  setFlag(f => !f);        // No re-render
+  // React batches within the same event loop
+}, 1000);
+
+Promise.resolve().then(() => {
+  setCount(c => c + 1);    // No re-render
+  setFlag(f => !f);        // No re-render
+  // React batches within the same event loop
+});
+```
+
+### How Auto Batching Works
+
+The key to Auto Batching is the change in how updates are processed:
+
+**1. Discrete Events (key input, clicks, etc.)**
+```javascript
+// React 17: Immediate synchronous execution
+function handleKeyDown() {
+	setState(...);
+	// --> Immediate flush --> Render right away
+}
+
+// React 18: Deferred to microtask
+function handleKeyDown() {
+	setState(...);
+	// --> flushSyncCallbacks() scheduled as microtask
+	// --> Rendering happens after event handler completes
+}
+```
+
+**2. Asynchronous Updates (setTimeout, Promise, etc.)**
+```javascript
+// React 17: Separate renders for each
+setTimeout(() => {
+  setA(1); // Render 1
+  setB(2); // Render 2
+});
+
+// React 18: Batched into one
+setTimeout(() => {
+  setA(1);
+  setB(2);
+  // Processed as a single render
+});
+```
+
+
+## How React 18's Changes Affected Cursor Rendering
+
+The React 18 changes discussed above directly impacted the cursor rendering logic. Let's now analyze specifically how **Concurrent Rendering and Auto Batching** combined to cause the cursor rendering issue.
+
+### The Core Problem: Order Reversal Due to Rendering Timing Changes
+
+In React 17, the text component rendered immediately and synchronously, and the cursor component was deferred via `queueMicrotask`, naturally guaranteeing the text --> cursor order.
+
+But in React 18, the text component itself was deferred to a microtask, so the cursor and text ended up executing in the same microtask. As a result, the cursor ran before the text component was committed, causing the issue.
+
+#### Key Input Processing Flow in React 17
+
+```javascript
+function handleKeyDown(event) {
+  setText(newText);           // 1. State update
+  // 2. flushSyncCallbacks() executes immediately
+  // 3. Text rendering & commit complete
+  // 4. Text DOM calculation
+  queueMicrotask(() => {
+    cursorComponent(textHeight); // 4. Cursor rendering
+  });
+}
+```
+
+#### Key Input Processing Flow in React 18
+
+```javascript
+function handleKeyDown(event) {
+  setText(newText);           // 1. State update (added to syncQueue)
+  // 2. flushSyncCallbacks() --> scheduled as microtask
+
+  queueMicrotask(() => {
+    cursorComponent(textHeight);     // 3. textHeight is undefined X
+  // 4. flushSyncCallbacks() runs in the same microtask, rendering the text
+  });
+}
+```
+
+### The Combined Effect of Auto Batching and Concurrent Rendering
+
+React 18's two key changes combined to cause the problem:
+
+| Change | Role and Impact |
+| ------------------------ | --------------------------------------- |
+| **Concurrent Rendering** | Defers sync work to microtask for Discrete event processing |
+| **Auto Batching**        | Batches updates together within microtask (delays rendering timing) |
+--> This caused **text and cursor to render at the same timing, breaking the expected order**
+
+#### Detailed Execution Order Comparison
+
+| Step | React 17 | React 18 |
+| ----- | ----------------------------- | ------------------------------ |
+| **1** | Key input event fires | Key input event fires |
+| **2** | `setState` call --> **Immediate sync rendering** | `setState` call --> **Microtask scheduled** |
+| **3** | Text DOM update complete & DOM calculation | Waiting in microtask queue |
+| **4** | `queueMicrotask`: cursor rendering OK | Microtask: cursor rendering attempt FAIL |
+| **5** | - | Microtask: text DOM calculation |
+
+#### Execution Order in the Microtask Queue
+
+In React 18, microtasks execute in this order:
+
+```javascript
+[
+  () => cusrsorComponent(),       // Cursor logic: registered in queue first
+  () => flushSyncCallbacks(),     // Text rendering: added by React later
+]
+
+```
+
+**Why Was This Change Made?**
+
+React 18's changes were primarily aimed at performance optimization:
+
+- **Auto Batching**: Performance improvement by preventing unnecessary re-renders
+- **Concurrent Rendering**: Improved responsiveness by preventing main thread blocking
+- **Unintended side effect**: Changed behavior for code that depended on rendering order
+
+
+In React 18, with the **syncQueue processing for Discrete Events shifting to microtasks**,
+the previously working flow of "text rendering --> text DOM calculation --> cursor rendering" became "text rendering --> cursor rendering attempt --> text DOM calculation."
+This caused the cursor to fail at calculating the correct position and not render properly.
+
+This is precisely how React 18's performance optimization unintentionally affected the cursor implementation.
+
+## Resolution Process
+
+To resolve the cursor rendering issue in React 18, I tried several approaches.
+
+### First Attempt: Using Macrotasks
+
+The first approach was deferring cursor rendering to a **macrotask using `setTimeout`**.
+
+```javascript
+function handleKeyDown(event) {
+  setText(newText);              // Text update
+	// DOM calculation complete
+  setTimeout(() => {             // Execute in macrotask
+    cursorComponent(textHeight); // Cursor rendering
+  }, 0);
+}
+```
+
+The cursor did render at the correct position, but the user experience suffered.
+When typing multiple characters quickly, the cursor appeared to teleport.
+
+The limitation of the macrotask approach was that the **macrotask execution timing** in the **event loop** was simply too slow.
+### Analyzing the JavaScript Event Loop
+
+To understand the difference between macrotasks and microtasks, I analyzed the JavaScript event loop.
+
+**Basic Event Loop Flow**
+
+```javascript
+console.log('1. Synchronous');
+
+queueMicrotask(() => console.log('2. Microtask'));
+setTimeout(() => console.log('4. Macrotask'), 0);
+queueMicrotask(() => console.log('3. Microtask'));
+
+// Output: 1 --> 2 --> 3 --> 4
+```
+
+**The required execution timing was:**
+- **After React's rendering completes**
+- But **not as late as a macrotask**
+
+In other words, I needed a **precise timing** that falls between microtasks and macrotasks.
+
+### Second Attempt: Double Microtask
+
+I came up with the idea of calling `queueMicrotask` inside another `queueMicrotask` to attempt cursor rendering **after React's flushSyncCallbacks**.
+
+```javascript
+function handleKeyDown(event) {
+  setText(newText);           // Text update
+
+  queueMicrotask(() => {      // First microtask
+    queueMicrotask(() => {    // Second microtask
+      cursorComponent();      // Cursor rendering
+    });
+  });
+}
+```
+
+**The Relationship Between Auto Batching and Double Microtasks**
+
+```javascript
+// Verification 1: Same-level microtasks are batched
+queueMicrotask(() => {
+  setText("first text");
+  setText("second text"); // Batched together by Auto Batching
+});
+
+// Verification 2: Nested microtasks are batched separately
+queueMicrotask(() => {
+  setText("outer text");
+
+  queueMicrotask(() => {
+    setText("inner text"); // Processed as a separate batch
+  });
+});
+```
+
+- Same-level microtasks are **batched together**
+- Nested microtasks are **processed separately**
+    --> Cursor rendering can be **safely deferred until after text rendering**
+
+Precise timing adjustment considering React 18's execution order:
+
+```javascript
+// Execution order in React 18
+handleKeyDown();
+// 1. setText() call --> scheduleMicrotask(flushSyncCallbacks)
+// 2. queueMicrotask(first) registered
+// 3. queueMicrotask(second) registered (inside the first)
+
+// Microtask queue execution:
+// --> flushSyncCallbacks() (text rendering)
+// --> First microtask
+// Rendered together via auto batching
+// --> Second microtask (cursor rendering) OK
+```
+
+The nested microtask approach ultimately provided:
+- **Immediate response**: Cursor renders instantly on key input
+- **Accurate positioning**: Position calculated with text DOM ready
+- **Smooth UX**: No macrotask delay for a fluid typing experience
+
+### Another Issue: Complexity in Collaborative Editing
+
+```javascript
+// Event classification in collaborative editing
+const updateFromOtherUser = (newText) => {
+  setText(newText);  // Changes from another user
+  // This is a Default Event, not a Discrete Event (lower priority)
+};
+```
+
+During collaborative editing, **updates from other users** are processed internally by React as **Default events**. In this case, rendering timing is deferred to a macrotask, requiring a different strategy.
+
+|Event Type|Lane Priority|Rendering Timing|Examples|
+|---|---|---|---|
+|**Discrete**|SyncLane|Microtask|Key input, clicks|
+|**Default**|DefaultLane|Macrotask|Network responses, timers|
+
+### Final Strategy: Branching by Event Type
+
+In collaborative editing, different strategies were needed depending on the event type:
+
+```javascript
+function handleTextUpdate(newText, source = 'user') {
+  setText(newText);
+
+  if (source === 'user') {
+    // Keyboard input: fast and accurate rendering
+    queueMicrotask(() => {
+      queueMicrotask(() => {
+        cursorComponent();
+      });
+    });
+  } else {
+    // Collaborative editing: stable macrotask approach
+    setTimeout(() => {
+      cursorComponent();
+    }, 0);
+  }
+}
+```
+
+Due to React 18's rendering timing changes, proper timing control became essential for cursor rendering logic.
+
+- Macrotasks are too slow --> UX degradation
+- Microtasks are too fast --> DOM not yet reflected
+- Double microtasks provide the **perfect timing**
+- Cases like collaborative editing where **event priorities differ require separate handling**
+--> This led to building a **reliable approach for controlling cursor rendering accurately and naturally**.
+
+## What I Learned from Working with React 18 Firsthand
+
+When React 18 introduced Auto Batching and Concurrent Rendering, I understood them as simply "optimizations that React handles internally." The commonly available information only covered how events are automatically classified and processing order is adjusted for performance.
+
+But after experiencing the editor cursor rendering issue firsthand, I had to **look directly at React's internal code** to understand **how React decides to handle events** and **when rendering actually occurs**.
+
+What I specifically learned:
+
+- **Discrete events (keyboard input, etc.) are processed in microtasks**,
+    while **Default/Continuous and other events are processed in macrotasks**
+- This behavior is determined by React's internal code (`scheduleSyncCallback`, `scheduleCallback`) and `executionContext` evaluation
+- These processing changes directly affect actual DOM rendering timing
+- Understanding how microtasks and macrotasks flow through the event loop
+
+None of this could be learned just from reading the update notes. It only became clear through analyzing React's internal code. What I had previously known only as concepts -- **how "Concurrent Rendering" actually handles events and at what timing it defers rendering, and at what event loop granularity Auto Batching operates** -- I experienced firsthand.
+
+Above all, I was reminded that **React's "optimizations" don't always guarantee the developer's intended outcome in complex projects**, and that the effort to understand internal workings is truly important.
+
+**References**
+https://goidle.github.io/react/in-depth-react18-lane/
+https://goidle.github.io/react/in-depth-react18-concurrent_render/

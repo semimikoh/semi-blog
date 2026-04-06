@@ -1,0 +1,93 @@
+{
+  "경력": [
+    {
+      "회사": "NHN Injeinc",
+      "팀": "Tech Development Lab",
+      "기간": "2025.03 ~ Present",
+      "프로젝트": [
+        {
+          "이름": "TicketLink Japan Service",
+          "설명": [
+            "Admin site for operating ticket entry/draw services targeting the Japanese market",
+            "Sole frontend developer for the ticket entry/draw admin system (including architecture design)"
+          ]
+        },
+        {
+          "이름": "TicketLink Global Site Renewal",
+          "설명": [
+            "Renewal project to expand the Korean-centric TicketLink service into a global service",
+            "Developed an i18n module in an environment where legacy screens (JSP/AngularJS) and new React screens coexist"
+          ]
+        }
+      ]
+    },
+    {
+      "회사": "TMAX GAIA",
+      "팀": "GA2-2-2",
+      "기간": "2023.09 ~ 2025.03",
+      "프로젝트": [
+        {
+          "이름": "GAIA Docs",
+          "설명": [
+            "A web-based office product with features similar to Google Docs (canvas-based)/Sheets/Slides",
+            "Compatible with MS Office and Hangul document formats, supporting real-time multi-user collaborative editing",
+            "Architecture based on Event-driven Architecture + Command Pattern"
+          ],
+          "담당업무": [
+            "Owned text-related common features shared across the Word / PowerPoint / Excel modules",
+            "Stabilized and maintained caret/selection, copy & paste, styles, collaborative editing, and save functionality for the text module"
+          ],
+          "관련글": [
+            {
+              "href": "/posts/react-18-cursor-rendering",
+              "제목": "How React 18 handles events: sync vs. async"
+            },
+            {
+              "href": "/posts/algorithm-frontend-optimization",
+              "제목": "Optimizing the frontend with algorithms"
+            },
+            {
+              "href": "/posts/math-for-development",
+              "제목": "Is math a prerequisite for development?"
+            },
+            {
+              "href": "/posts/react-key-component-identity",
+              "제목": "How React key distinguishes components"
+            },
+            {
+              "href": "/posts/dom-api-floating-point",
+              "제목": "Numeric thresholds I found in the DOM API"
+            },
+            {
+              "href": "/posts/browser-text-input-handling",
+              "제목": "How browsers handle text input"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "회사": "JEI Corporation / JEI e-Academy",
+      "팀": "Math Content Team",
+      "기간": "2017.01 ~ 2022.08",
+      "프로젝트": [
+        {
+          "이름": "JEI AI Math",
+          "설명": [
+            "A learner-centric program that delivers optimal math content tailored to each student"
+          ]
+        }
+      ]
+    }
+  ],
+  "학력": [
+    {
+      "학교": "Ajou University, Department of Mathematics",
+      "기간": "2012.03 ~ 2016.08 (Graduated)"
+    },
+    {
+      "학교": "Dalian Korean International School",
+      "기간": "2009.03 ~ 2011.12 (Located in China)"
+    }
+  ]
+}

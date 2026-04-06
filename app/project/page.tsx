@@ -1,8 +1,6 @@
-export default function ProjectPage() {
-  return (
-    <div>
-      <h3>Project</h3>
-      <p></p>
-    </div>
-  );
+import { redirect } from 'next/navigation';
+import { defaultLocale } from '../lib/i18n/config';
+
+export default function ProjectRedirect() {
+  redirect(`/${defaultLocale}/project`);
 }
