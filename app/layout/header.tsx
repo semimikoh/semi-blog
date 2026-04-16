@@ -10,7 +10,7 @@ const navItems: { href: string; label: string; disabled?: boolean }[] = [
   { href: '/posts', label: 'POSTS' },
   { href: '/about', label: 'ABOUT' },
   { href: '/fe-lab', label: 'PLAYGROUND' },
-  { href: '/project', label: 'PROJECT', disabled: true },
+  { href: '/project', label: 'PROJECT' },
   // { href: '/guestbook', label: 'GUEST' },
 ];
 
@@ -19,14 +19,7 @@ export function Header() {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('theme');
-    if (
-      saved === 'dark' ||
-      (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)
-    ) {
-      setDark(true);
-      document.documentElement.classList.add('dark');
-    }
+    setDark(document.documentElement.classList.contains('dark'));
   }, []);
 
   const toggleTheme = () => {

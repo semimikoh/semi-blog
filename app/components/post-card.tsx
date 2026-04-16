@@ -44,8 +44,8 @@ export function PostCard({
               className="rounded object-cover"
             />
           ) : (
-            <div className="flex h-[100px] w-[160px] items-center justify-center rounded bg-[#e0f5f0] px-3">
-              <span className="line-clamp-3 text-center text-sm font-bold text-black">
+            <div className="flex h-[100px] w-[160px] items-center justify-center rounded bg-card px-3">
+              <span className="line-clamp-3 text-center text-sm font-bold text-foreground">
                 {title}
               </span>
             </div>

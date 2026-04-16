@@ -6,6 +6,9 @@ import prettierConfig from "eslint-config-prettier";
 
 const eslintConfig = [
   {
+    ignores: ['.next/**', '.velite/**', 'next-env.d.ts'],
+  },
+  {
     files: ["**/*.{ts,tsx}"],
     plugins: {
       "@typescript-eslint": tsPlugin,

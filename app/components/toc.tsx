@@ -13,18 +13,21 @@ export function TableOfContents() {
   const [activeId, setActiveId] = useState('');
 
   useEffect(() => {
-    const elements = document.querySelectorAll('.prose h2, .prose h3');
-    const items: TocItem[] = Array.from(elements).map((el) => {
-      if (!el.id) {
-        el.id = el.textContent?.replace(/\s+/g, '-').toLowerCase() ?? '';
-      }
-      return {
-        id: el.id,
-        text: el.textContent ?? '',
-        level: el.tagName === 'H2' ? 2 : 3,
-      };
-    });
-    setHeadings(items);
+    const collect = () => {
+      const elements = document.querySelectorAll('.prose h2, .prose h3');
+      const items: TocItem[] = Array.from(elements).map((el) => {
+        if (!el.id) {
+          el.id = el.textContent?.replace(/\s+/g, '-').toLowerCase() ?? '';
+        }
+        return {
+          id: el.id,
+          text: el.textContent ?? '',
+          level: el.tagName === 'H2' ? 2 : 3,
+        };
+      });
+      setHeadings(items);
+    };
+    requestAnimationFrame(collect);
   }, []);
 
   useEffect(() => {

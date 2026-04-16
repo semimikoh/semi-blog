@@ -1,5 +1,3 @@
-'use client';
-
 import * as runtime from 'react/jsx-runtime';
 
 const useMDXComponent = (code: string) => {

@@ -2,7 +2,7 @@ import { posts } from '#site/content';
 import { PostList } from '../components/post-list';
 
 export default function PostsPage() {
-  const sortedPosts = posts.sort(
+  const sortedPosts = [...posts].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
 

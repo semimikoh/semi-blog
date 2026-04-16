@@ -3,7 +3,7 @@ import { PostCard } from './components/post-card';
 import { WalkingDog } from './components/walking-dog';
 
 export default function Home() {
-  const recentPosts = posts
+  const recentPosts = [...posts]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 3);
 
