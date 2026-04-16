@@ -9,15 +9,13 @@ interface SkillsProps {
 
 export function Skills({ 스킬 }: SkillsProps) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       {스킬.map((group) => (
-        <div key={group.카테고리} className="flex items-baseline gap-3">
-          <span className="w-[90px] shrink-0 text-sm font-semibold">
+        <div key={group.카테고리} className="flex items-baseline gap-3 text-sm">
+          <span className="w-[140px] shrink-0 text-xs font-semibold tracking-wide text-muted uppercase">
             {group.카테고리}
           </span>
-          <span className="text-sm text-foreground/70">
-            {group.목록.join(', ')}
-          </span>
+          <span className="text-foreground/75">{group.목록.join(', ')}</span>
         </div>
       ))}
     </div>
