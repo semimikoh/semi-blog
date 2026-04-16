@@ -39,14 +39,6 @@ const highlights = [
   '대화형 UI에 맞춘 접근성 설계 (aria-live로 스트리밍 상태 전달, Skip Link, 포커스 복원)',
 ];
 
-const architecture = [
-  '사용자 입력',
-  '조건 추출',
-  '벡터 + 키워드 하이브리드 검색',
-  'LLM 요약 스트리밍',
-  'Chat UI 렌더링',
-];
-
 interface Decision {
   title: string;
   description: string;
@@ -69,7 +61,7 @@ const decisions: Decision[] = [
         label: '알고리즘으로 프론트엔드 최적화 하기',
       },
       {
-        href: '/fe-lab?tab=linebreak',
+        href: '/playground?tab=linebreak',
         label: 'Linebreak Playground',
       },
     ],
@@ -152,6 +144,18 @@ export default function ProjectPage() {
       </header>
 
       <section className="flex flex-col gap-4">
+        <SectionHeading>Overview</SectionHeading>
+        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
+          {overview.map((item) => (
+            <Fragment key={item.label}>
+              <span className="font-semibold">{item.label}</span>
+              <span className="text-foreground/75">{item.value}</span>
+            </Fragment>
+          ))}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <Image
             src="/projects/civichat/benefit-search.gif"
@@ -169,18 +173,6 @@ export default function ProjectPage() {
             unoptimized
             className="w-full rounded bg-card"
           />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <SectionHeading>Overview</SectionHeading>
-        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
-          {overview.map((item) => (
-            <Fragment key={item.label}>
-              <span className="font-semibold">{item.label}</span>
-              <span className="text-foreground/75">{item.value}</span>
-            </Fragment>
-          ))}
         </div>
       </section>
 
@@ -205,17 +197,15 @@ export default function ProjectPage() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <SectionHeading>Architecture</SectionHeading>
-        <div className="flex flex-wrap gap-2 text-sm">
-          {architecture.map((item, index) => (
-            <span key={item} className="inline-flex items-center gap-2">
-              <span className="rounded bg-card px-2.5 py-1 font-semibold">
-                {item}
-              </span>
-              {index < architecture.length - 1 && (
-                <span className="text-muted">-&gt;</span>
-              )}
-            </span>
+        <SectionHeading>Challenges</SectionHeading>
+        <div className="flex flex-col gap-5">
+          {challenges.map((challenge) => (
+            <article key={challenge.title} className="flex flex-col gap-1.5">
+              <h3 className="text-sm font-bold">{challenge.title}</h3>
+              <p className="text-sm leading-relaxed text-foreground/75">
+                {challenge.description}
+              </p>
+            </article>
           ))}
         </div>
       </section>
@@ -243,25 +233,11 @@ export default function ProjectPage() {
                       href={decision.links[1].href}
                       className="font-semibold text-blue-500 transition-opacity hover:opacity-60"
                     >
-                      FE Lab playground
+                      플레이그라운드
                     </Link>
                     로도 정리했습니다.
                   </>
                 )}
-              </p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <SectionHeading>Challenges</SectionHeading>
-        <div className="flex flex-col gap-5">
-          {challenges.map((challenge) => (
-            <article key={challenge.title} className="flex flex-col gap-1.5">
-              <h3 className="text-sm font-bold">{challenge.title}</h3>
-              <p className="text-sm leading-relaxed text-foreground/75">
-                {challenge.description}
               </p>
             </article>
           ))}

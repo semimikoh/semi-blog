@@ -9,7 +9,7 @@ const navItems: { href: string; label: string; disabled?: boolean }[] = [
   { href: '/', label: 'HOME' },
   { href: '/posts', label: 'POSTS' },
   { href: '/about', label: 'ABOUT' },
-  { href: '/fe-lab', label: 'PLAYGROUND' },
+  { href: '/playground', label: 'PLAYGROUND' },
   { href: '/project', label: 'PROJECT' },
   // { href: '/guestbook', label: 'GUEST' },
 ];

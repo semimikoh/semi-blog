@@ -8,10 +8,10 @@ import '@/app/style/prose.css';
 
 const PLAYGROUND_LINKS: Record<string, { label: string; href: string }[]> = {
   'math-for-development': [
-    { label: 'DOM 회전 역산', href: '/fe-lab?tab=rotation' },
+    { label: 'DOM 회전 역산', href: '/playground?tab=rotation' },
   ],
   'algorithm-frontend-optimization': [
-    { label: '탐색 최적화 O(n)→O(log n)', href: '/fe-lab?tab=linebreak' },
+    { label: '탐색 최적화 O(n)→O(log n)', href: '/playground?tab=linebreak' },
   ],
 };
 

@@ -25,7 +25,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/fe-lab`,
+      url: `${baseUrl}/playground`,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.8,
