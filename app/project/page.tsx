@@ -17,7 +17,7 @@ const overview = [
   {
     label: '규모',
     value:
-      '정부 서비스 10,919개 / 법령 687개 / 조문 31,066개 검색 대상화, 유닛 테스트 47개',
+      '정부 서비스 10,919개 / 법령 687개 / 조문 31,066개 검색 대상화, 유닛/컴포넌트 테스트 67개',
   },
   {
     label: '성능',
@@ -30,13 +30,70 @@ const overview = [
   },
 ];
 
-const highlights = [
-  '스트리밍 응답의 로딩/요약/결과 3단계를 분리해 사용자가 응답 시작을 즉시 인지하도록 설계',
-  '벡터 검색과 키워드 검색을 RRF로 결합하고 구조화 필터를 더해 검색 정확도 보완',
-  'DOM 렌더 전 Canvas로 텍스트 너비를 측정하고 이분 탐색으로 줄바꿈 계산해 스크롤 안정화',
-  '대화 히스토리에서 이전 조건을 누적하여 멀티턴 검색 지원',
-  '법령 데이터 파이프라인: 687개 법령 마크다운 파싱 → 조문 분리 → 복지 서비스 법령 필드 매칭 99.5% (7,398건 중 7,359건)',
-  '대화형 UI에 맞춘 접근성 설계 (aria-live로 스트리밍 상태 전달, Skip Link, 포커스 복원)',
+const highlights: React.ReactNode[] = [
+  <>
+    Next.js API Route와 SSE로 AI 요약{' '}
+    <strong className="font-semibold text-foreground/90">
+      스트리밍 UI 구현
+    </strong>
+  </>,
+  <>
+    Supabase pgvector 기반 벡터 검색과 키워드 검색을{' '}
+    <strong className="font-semibold text-foreground/90">RRF로 결합</strong>
+  </>,
+  <>
+    AI 응답 상태를 로딩/요약/결과 카드로 분리해{' '}
+    <strong className="font-semibold text-foreground/90">
+      체감 응답성 개선
+    </strong>
+  </>,
+  <>
+    Canvas 기반 메시지 높이 사전 계산으로 가상 스크롤 안정화{' '}
+    <strong className="font-semibold text-foreground/90">
+      (스크립팅 85% 감소)
+    </strong>
+  </>,
+  <>
+    aria-live, role=&quot;status&quot;, Skip Link, 포커스 복원으로 대화형 UI{' '}
+    <strong className="font-semibold text-foreground/90">접근성 보완</strong>
+  </>,
+  <>
+    Vitest + React Testing Library로 유닛/컴포넌트{' '}
+    <strong className="font-semibold text-foreground/90">테스트 67개</strong>
+  </>,
+];
+
+const architecture = [
+  {
+    label: 'Client',
+    title: 'Chat UI',
+    description: '질문 입력, 대화 히스토리, 결과 카드 렌더링',
+  },
+  {
+    label: 'API',
+    title: 'Next.js Route Handler',
+    description: 'SSE로 요약 청크와 검색 결과를 단계별 전송',
+  },
+  {
+    label: 'Core',
+    title: 'core/search',
+    description: 'React와 분리된 순수 TypeScript 검색/조건 추출 로직',
+  },
+  {
+    label: 'Retrieval',
+    title: 'Hybrid Retrieval',
+    description: 'pgvector 벡터 검색, tsvector 키워드 검색, RRF 결합',
+  },
+  {
+    label: 'LLM',
+    title: 'OpenAI Summary',
+    description: '검색 결과를 쉬운 문장으로 요약하고 스트리밍 응답 생성',
+  },
+  {
+    label: 'Render',
+    title: 'Streaming Renderer',
+    description: '타이프라이터 요약, 결과 카드, 가상 스크롤 높이 추정',
+  },
 ];
 
 interface Decision {
@@ -47,9 +104,9 @@ interface Decision {
 
 const decisions: Decision[] = [
   {
-    title: '검색 로직을 React 밖으로 분리',
+    title: '응답 상태를 단계별로 분리',
     description:
-      '복지/법령 검색, 조건 추출, 요약 로직을 src/core에 격리해 CLI와 API Route가 같은 함수를 사용하도록 구성했습니다. UI 연결 전 터미널에서 검색 품질을 먼저 검증할 수 있고, 팀 환경에서도 프론트엔드와 백엔드/ML이 같은 core 함수를 기준으로 독립적으로 작업할 수 있는 구조입니다.',
+      'SSE 스트리밍 응답을 로딩(스피너), LLM 요약(타이프라이터), 결과 카드(순차 애니메이션) 3단계로 분리했습니다. 첫 텍스트 청크가 도착하면 스피너를 즉시 제거해 사용자가 응답 시작을 바로 인지할 수 있도록 하고, 애니메이션 진행 중에는 입력을 비활성화해 중복 요청을 방지합니다.',
   },
   {
     title: 'DOM 렌더 전 텍스트 너비와 메시지 높이 계산',
@@ -61,7 +118,7 @@ const decisions: Decision[] = [
         label: '알고리즘으로 프론트엔드 최적화 하기',
       },
       {
-        href: '/playground?tab=linebreak',
+        href: '/fe-lab?tab=linebreak',
         label: 'Linebreak Playground',
       },
     ],
@@ -72,14 +129,9 @@ const decisions: Decision[] = [
       '벡터 검색만으로는 지역명이나 법령명 같은 정확 매칭이 약했습니다. 반대로 키워드 검색만으로는 서술형 질문을 처리할 수 없었습니다. 두 결과를 RRF로 합산하고 구조화 조건 필터를 더해 양쪽의 약점을 보완했습니다.',
   },
   {
-    title: '조건 추출은 LLM 호출 없이 시작',
+    title: '검색 로직을 React 밖으로 분리',
     description:
-      'LLM으로 모든 조건을 추출하면 정확도는 좋아질 수 있지만, 매 질문마다 API 호출 비용과 응답 지연이 발생합니다. 나이/성별/직업/지역처럼 패턴이 명확한 조건은 정규식으로 즉시 추출하고, 부족한 조건은 대화 흐름에서 추가로 묻도록 설계했습니다.',
-  },
-  {
-    title: '응답 상태를 단계별로 분리',
-    description:
-      '스트리밍 UI는 체감 응답 속도를 높이지만, 콘텐츠가 점진적으로 늘어나면서 스크롤 위치가 흔들리기 쉽습니다. 로딩/요약 스트리밍/결과 카드 표시를 분리하고, 메시지 높이를 사전 계산해 스크롤 안정성과 UX를 함께 잡았습니다.',
+      '복지/법령 검색, 조건 추출, 요약 로직을 src/core에 격리해 CLI와 API Route가 같은 함수를 사용하도록 구성했습니다. UI 연결 전 터미널에서 검색 품질을 먼저 검증할 수 있고, 팀 환경에서도 프론트엔드와 백엔드/ML이 같은 core 함수를 기준으로 독립적으로 작업할 수 있는 구조입니다.',
   },
 ];
 
@@ -90,14 +142,14 @@ const challenges = [
       '초기에는 벡터 검색만 사용해 "서울 청년 지원금"처럼 지역명과 대상이 명확한 질문에서도 관련 없는 결과가 상위에 노출됐습니다. 이후 키워드 검색(tsvector)을 추가하고 RRF로 순위를 결합해, 의미 기반 검색과 정확 매칭을 함께 반영하도록 개선했습니다.',
   },
   {
-    title: '벡터 유사도와 연령 조건의 불일치 문제',
+    title: '벡터 유사도와 연령 조건의 불일치',
     description:
-      '하이브리드 검색 도입 후에도, 벡터 유사도가 높으면 연령과 맞지 않는 서비스가 상위에 노출되는 문제가 남았습니다. "26살 지원금"을 검색하면 "노인 돌봄", "아동 수당" 같은 결과가 섞여 나왔습니다. 검색 결과에 연령 텍스트 필터를 추가해, 사용자 나이와 명백히 불일치하는 서비스를 후처리 단계에서 제외하도록 개선했습니다.',
+      '하이브리드 검색 도입 후에도 벡터 유사도가 높으면 연령과 맞지 않는 서비스가 상위에 올라왔습니다. 검색 결과에 연령 텍스트 필터를 추가해 사용자 나이와 명백히 불일치하는 서비스를 후처리 단계에서 제외했습니다.',
   },
   {
     title: '스트리밍 중 가상 스크롤의 높이 추정 문제',
     description:
-      'LLM 요약이 어절 단위로 점진 렌더링되면서 메시지 높이가 계속 변하는데, DOM에 넣고 getBoundingClientRect로 측정하면 매번 reflow가 발생했습니다. Canvas measureText로 DOM 밖에서 문자 폭을 측정하고 이분 탐색으로 줄바꿈을 계산하는 방식으로 전환해, 스크립팅 비용을 85% 줄이고 스크롤 안정성을 확보했습니다.',
+      'LLM 요약이 어절 단위로 점진 렌더링되면서 메시지 높이가 계속 변해, 긴 대화에서 스크롤 위치가 흔들리는 문제가 있었습니다.',
   },
 ];
 
@@ -181,19 +233,51 @@ export default function ProjectPage() {
         <p className="text-sm leading-relaxed text-foreground/75">
           기존 정부 복지 사이트는 메뉴 탐색 중심이라 사용자가 원하는 혜택을
           빠르게 찾기 어렵습니다. CiviChat은 자연어 질문을 조건 추출, RAG 검색,
-          LLM 요약 스트리밍, 결과 렌더링까지 하나의 대화 흐름으로 연결하고, 이
-          과정에서 AI 응답 렌더링, 벡터 검색 인터페이스, 접근성, 성능 최적화를
-          프론트엔드 관점에서 설계하기 위해 만들었습니다.
+          LLM 요약 스트리밍, 결과 렌더링까지 하나의 대화 흐름으로 연결하고, AI
+          응답 렌더링, 벡터 검색 인터페이스, 접근성, 성능 최적화를 직접 설계하고
+          구현했습니다.
         </p>
       </section>
 
       <section className="flex flex-col gap-4">
         <SectionHeading>Highlights</SectionHeading>
         <ul className="flex list-disc flex-col gap-2 pl-4 text-sm leading-relaxed text-foreground/75">
-          {highlights.map((item) => (
-            <li key={item}>{item}</li>
+          {highlights.map((item, i) => (
+            <li key={i}>{item}</li>
           ))}
         </ul>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <SectionHeading>Architecture</SectionHeading>
+        <div className="flex flex-col text-sm">
+          {architecture.map((step, i) => (
+            <Fragment key={step.title}>
+              <div className="grid grid-cols-[76px_1fr] gap-4">
+                <span className="pt-0.5 text-xs font-semibold tracking-wide text-muted uppercase">
+                  {step.label}
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold">{step.title}</h3>
+                  <p className="mt-1 leading-relaxed text-foreground/75">
+                    {step.description}
+                  </p>
+                </div>
+              </div>
+              {i < architecture.length - 1 && (
+                <div className="grid grid-cols-[76px_1fr] gap-4">
+                  <span />
+                  <span className="py-1 text-foreground/25">↓</span>
+                </div>
+              )}
+            </Fragment>
+          ))}
+        </div>
+        <p className="text-sm leading-relaxed text-foreground/75">
+          비즈니스 로직은 src/core에 격리하여 React/Next.js에 의존하지 않는 순수
+          TypeScript로 작성했습니다. CLI와 API Route가 같은 함수를 공유하며, 새
+          기능은 CLI에서 먼저 검증한 후 UI에 연결합니다.
+        </p>
       </section>
 
       <section className="flex flex-col gap-4">
@@ -245,7 +329,7 @@ export default function ProjectPage() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <SectionHeading>Accessibility</SectionHeading>
+        <SectionHeading>Accessibility & Performance</SectionHeading>
         <ul className="flex list-disc flex-col gap-2 pl-4 text-sm leading-relaxed text-foreground/75">
           {a11y.map((item) => (
             <li key={item}>{item}</li>
@@ -273,7 +357,9 @@ export default function ProjectPage() {
           <span className="font-semibold">Virtual Scroll</span>
           <span className="text-foreground/75">TanStack Virtual</span>
           <span className="font-semibold">Test</span>
-          <span className="text-foreground/75">Vitest (47 tests)</span>
+          <span className="text-foreground/75">
+            Vitest + React Testing Library (67 tests)
+          </span>
           <span className="font-semibold">Deploy</span>
           <span className="text-foreground/75">Vercel + Supabase Cloud</span>
         </div>
