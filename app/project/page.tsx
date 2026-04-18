@@ -17,7 +17,7 @@ const overview = [
   {
     label: '규모',
     value:
-      '정부 서비스 10,919개 / 법령 687개 / 조문 31,066개 검색 대상화, 유닛/컴포넌트 테스트 67개',
+      '정부 서비스 10,919개 / 법령 687개 / 조문 31,066개 검색 대상화, 유닛/컴포넌트 테스트 71개 + 검색 품질 평가',
   },
   {
     label: '성능',
@@ -32,20 +32,26 @@ const overview = [
 
 const highlights: React.ReactNode[] = [
   <>
-    Next.js API Route와 SSE로 AI 요약{' '}
+    검색 결과 이벤트를 먼저 전송하고 LLM 요약을 이어서 스트리밍하는{' '}
     <strong className="font-semibold text-foreground/90">
-      스트리밍 UI 구현
+      SSE 기반 대화 UI 구현
     </strong>
   </>,
   <>
     Supabase pgvector 기반 벡터 검색과 키워드 검색을{' '}
     <strong className="font-semibold text-foreground/90">RRF로 결합</strong>
+    하고 조건/지역/키워드 기반으로 재정렬
   </>,
   <>
-    AI 응답 상태를 로딩/요약/결과 카드로 분리해{' '}
+    지역 후보와 전국 후보를 함께 가져와 중앙부처/전국형 혜택 누락을 줄이는{' '}
     <strong className="font-semibold text-foreground/90">
-      체감 응답성 개선
+      검색 recall 개선
     </strong>
+  </>,
+  <>
+    정규식 기반 조건 추출을 설정 파일로 분리하고 취준생, 소상공인, 한부모,
+    차상위 같은 표현까지{' '}
+    <strong className="font-semibold text-foreground/90">구조화</strong>
   </>,
   <>
     Canvas 기반 메시지 높이 사전 계산으로 가상 스크롤 안정화{' '}
@@ -58,8 +64,10 @@ const highlights: React.ReactNode[] = [
     <strong className="font-semibold text-foreground/90">접근성 보완</strong>
   </>,
   <>
-    Vitest + React Testing Library로 유닛/컴포넌트{' '}
-    <strong className="font-semibold text-foreground/90">테스트 67개</strong>
+    검색 품질 평가, 데이터 갱신 파이프라인, Sentry 에러 수집을{' '}
+    <strong className="font-semibold text-foreground/90">
+      GitHub Actions와 운영 흐름에 연결
+    </strong>
   </>,
 ];
 
@@ -72,7 +80,8 @@ const architecture = [
   {
     label: 'API',
     title: 'Next.js Route Handler',
-    description: 'SSE로 요약 청크와 검색 결과를 단계별 전송',
+    description:
+      '검색 결과 이벤트를 먼저 보내고 LLM 요약 청크를 SSE로 스트리밍',
   },
   {
     label: 'Core',
@@ -81,8 +90,9 @@ const architecture = [
   },
   {
     label: 'Retrieval',
-    title: 'Hybrid Retrieval',
-    description: 'pgvector 벡터 검색, tsvector 키워드 검색, RRF 결합',
+    title: 'Hybrid Retrieval + Rerank',
+    description:
+      'pgvector 벡터 검색, tsvector 키워드 검색, RRF 결합 후 조건/지역/키워드 기반 재정렬',
   },
   {
     label: 'LLM',
@@ -104,9 +114,9 @@ interface Decision {
 
 const decisions: Decision[] = [
   {
-    title: '응답 상태를 단계별로 분리',
+    title: '검색 결과를 먼저 보내는 SSE 흐름',
     description:
-      'SSE 스트리밍 응답을 로딩(스피너), LLM 요약(타이프라이터), 결과 카드(순차 애니메이션) 3단계로 분리했습니다. 첫 텍스트 청크가 도착하면 스피너를 즉시 제거해 사용자가 응답 시작을 바로 인지할 수 있도록 하고, 애니메이션 진행 중에는 입력을 비활성화해 중복 요청을 방지합니다.',
+      '초기에는 LLM 요약 스트리밍이 끝난 뒤 검색 결과 카드를 보여주는 구조라 체감 응답이 늦었습니다. 서버가 검색 결과 이벤트를 먼저 보내고, 이후 요약 청크를 스트리밍하도록 바꿔 사용자가 검색 성공과 후보 결과를 더 빨리 인지할 수 있게 했습니다.',
   },
   {
     title: 'DOM 렌더 전 텍스트 너비와 메시지 높이 계산',
@@ -126,7 +136,7 @@ const decisions: Decision[] = [
   {
     title: '벡터 검색과 키워드 검색을 함께 사용',
     description:
-      '벡터 검색만으로는 지역명이나 법령명 같은 정확 매칭이 약했습니다. 반대로 키워드 검색만으로는 서술형 질문을 처리할 수 없었습니다. 두 결과를 RRF로 합산하고 구조화 조건 필터를 더해 양쪽의 약점을 보완했습니다.',
+      '벡터 검색만으로는 지역명이나 법령명 같은 정확 매칭이 약했습니다. 반대로 키워드 검색만으로는 서술형 질문을 처리할 수 없었습니다. 두 결과를 RRF로 합산한 뒤 서비스명/본문 키워드, 시군구/광역시도/전국형 여부, 구직자/임산부/소상공인/한부모/저소득 조건을 점수화해 최종 순위를 재정렬했습니다.',
   },
   {
     title: '검색 로직을 React 밖으로 분리',
@@ -139,17 +149,17 @@ const challenges = [
   {
     title: '벡터 검색의 정확 매칭 한계와 하이브리드 검색 도입',
     description:
-      '초기에는 벡터 검색만 사용해 "서울 청년 지원금"처럼 지역명과 대상이 명확한 질문에서도 관련 없는 결과가 상위에 노출됐습니다. 이후 키워드 검색(tsvector)을 추가하고 RRF로 순위를 결합해, 의미 기반 검색과 정확 매칭을 함께 반영하도록 개선했습니다.',
+      '초기에는 벡터 검색만 사용해 "서울 청년 지원금"처럼 지역명과 대상이 명확한 질문에서도 관련 없는 결과가 상위에 노출됐습니다. 이후 키워드 검색(tsvector)을 추가하고 RRF로 순위를 결합한 뒤, 조건/지역/키워드 기반 재정렬을 더해 의미 기반 검색과 정확 매칭을 함께 반영하도록 개선했습니다.',
   },
   {
-    title: '벡터 유사도와 연령 조건의 불일치',
+    title: '지역 필터로 인한 전국형 혜택 누락',
     description:
-      '하이브리드 검색 도입 후에도 벡터 유사도가 높으면 연령과 맞지 않는 서비스가 상위에 올라왔습니다. 검색 결과에 연령 텍스트 필터를 추가해 사용자 나이와 명백히 불일치하는 서비스를 후처리 단계에서 제외했습니다.',
+      '지역 필터를 강하게 적용하면 서울, 부산처럼 지역을 명시한 질문에서 중앙부처나 전국 공통 서비스가 후보에서 빠지는 문제가 있었습니다. 지역 필터 후보와 필터 없는 전국 후보를 함께 가져온 뒤 중복 제거와 지역 boost/penalty를 적용해 recall과 precision의 균형을 맞췄습니다.',
   },
   {
-    title: '스트리밍 중 가상 스크롤의 높이 추정 문제',
+    title: '검색 품질 회귀를 숫자로 확인하기',
     description:
-      'LLM 요약이 어절 단위로 점진 렌더링되면서 메시지 높이가 계속 변해, 긴 대화에서 스크롤 위치가 흔들리는 문제가 있었습니다.',
+      '검색 로직은 정규식, 벡터 검색, 키워드 검색, 후처리 필터가 함께 얽혀 있어 작은 수정도 다른 질의의 품질을 떨어뜨릴 수 있었습니다. eval query set을 만들고 Vitest 기반 검색 품질 테스트로 승격해 main push에서 품질 기준을 확인하도록 구성했습니다.',
   },
 ];
 
@@ -342,13 +352,13 @@ export default function ProjectPage() {
         <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
           <span className="font-semibold">Framework</span>
           <span className="text-foreground/75">
-            Next.js 15 (App Router), TypeScript
+            Next.js 16 (App Router), React 19, TypeScript
           </span>
           <span className="font-semibold">UI</span>
-          <span className="text-foreground/75">Mantine v7</span>
+          <span className="text-foreground/75">Mantine v9</span>
           <span className="font-semibold">Search</span>
           <span className="text-foreground/75">
-            Supabase pgvector, OpenAI Embeddings, RRF
+            Supabase pgvector, tsvector, OpenAI Embeddings, RRF, custom rerank
           </span>
           <span className="font-semibold">LLM</span>
           <span className="text-foreground/75">
@@ -356,9 +366,13 @@ export default function ProjectPage() {
           </span>
           <span className="font-semibold">Virtual Scroll</span>
           <span className="text-foreground/75">TanStack Virtual</span>
+          <span className="font-semibold">Ops</span>
+          <span className="text-foreground/75">
+            GitHub Actions, Sentry, Husky, lint-staged
+          </span>
           <span className="font-semibold">Test</span>
           <span className="text-foreground/75">
-            Vitest + React Testing Library (67 tests)
+            Vitest + React Testing Library (71 tests), search quality eval
           </span>
           <span className="font-semibold">Deploy</span>
           <span className="text-foreground/75">Vercel + Supabase Cloud</span>
